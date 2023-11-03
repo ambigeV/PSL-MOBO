@@ -51,7 +51,8 @@ n_candidate = 1000
 # number of optional local search
 n_local = 1
 # device
-device = 'cuda'
+# device = 'cuda'
+device = 'cpu'
 # benchmark or hyper
 if_hyper = False
 # -----------------------------------------------------------------------------
@@ -139,6 +140,8 @@ for range_id, test_id in enumerate(problem_id):
         # n_iter batch selections 
         for i_iter in range(n_init, n_iter):
             print("Start of iteration {}.".format(i_iter))
+            # record the start time for each iteration
+            time_s_iter = time.time()
             for task_id in range(problem_range[range_id]):
 
                 # intitialize the model and optimizer
@@ -312,7 +315,13 @@ for range_id, test_id in enumerate(problem_id):
                     current_result = problem_list[task_id].evaluate(predict_x)
                     current_rmse, _ = rmse(front_list[task_id].to(device), current_result)
                     rmse_records.append(current_rmse)
-            
+
+            # record the ending time for each iteration
+            time_t_iter = time.time()
+
+            # print out the duration time
+            print("The duration time for iteration {} is {}s".format(i_iter, time_t_iter - time_s_iter))
+
             # check the current HV for evaluated solutions
             # hv = HV(ref_point=np.array(ref_point))
             # hv_value = hv(Y)
@@ -334,6 +343,7 @@ for range_id, test_id in enumerate(problem_id):
         # with open('hv_psl_mobo.pickle', 'wb') as output_file:
         #     pickle.dump([hv_list], output_file)
 
+    # record the whole path file ready for analysis
     my_dict = dict()
     my_dict['pareto'] = pareto_records_list
     my_dict['igd'] = igd_records_list
