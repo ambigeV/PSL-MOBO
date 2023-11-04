@@ -1,5 +1,9 @@
 import torch
 import numpy as np
+# import the hyper-parameter tuning related packages
+from yahpo_gym import local_config, list_scenarios
+import ConfigSpace
+from yahpo_gym import BenchmarkSet
 
 DTLZ_pref_list = [62, 18, 12, 9, 9]
 
@@ -91,13 +95,224 @@ def get_problem(name, *args, **kwargs):
         'mdtlz3_4_2': mDTLZ3(m=3, n=6, s=0.75, p=0.5, p_ind=1),
         'mdtlz3_4_3': mDTLZ3(m=3, n=6, s=0.50, p=0.5, p_ind=2),
         'mdtlz3_4_4': mDTLZ3(m=3, n=6, s=0.25, p=0.5, p_ind=3),
-
+        'hyper1': hyper(task_id=0),
+        'hyper2': hyper(task_id=1),
+        'hyper3': hyper(task_id=2),
  }
 
     if name not in PROBLEM:
         raise Exception("Problem not found.")
     
     return PROBLEM[name]
+
+
+class hyper:
+    def __init__(self, task_num=3, task_id=0, instance="iaml_xgboost"):
+        local_config.init_config()
+        local_config.set_data_path("yahpo_data")
+
+        print("Start Preparing Configure Space")
+        # b is an instantiated benchmark called "lcbench" with multiple instances
+        b = BenchmarkSet(scenario=instance)
+        # Can set up a task_num parameter to control the multi-task scale
+        b_list = []
+        for i in range(task_num):
+            b_temp = BenchmarkSet(scenario=instance)
+            b_temp.set_instance(b_temp.instances[i])
+            b_list.append(b_temp)
+
+        space_list = []
+        for i in b_list:
+            space_list.append(i.get_opt_space(drop_fidelity_params=False))
+
+        info_list = b.config.hp_names
+        info_xs = b._get_config_space()
+
+        if instance == "iaml_xgboost":
+            info_list = info_list[2:-2]
+            print("Before: {}.".format(info_list))
+            info_list.remove("rate_drop")
+            print("After: {}.".format(info_list))
+        else:
+            info_list = info_list[1:]
+        print("Start Leaving Configure Space")
+
+        hyper_info = dict()
+        hyper_info["info_xs"] = info_xs
+        hyper_info["info_list"] = info_list
+        hyper_info["b_list"] = b_list
+        hyper_info["space_list"] = space_list
+
+        if_negate = torch.tensor([False, False, False])
+
+        self.current_name = "hp"
+        self.obj_list = ['mmce', 'rammodel', 'ias']
+        self.n_dim = len(info_list)
+        self.n_obj = len(self.obj_list)
+        self.hyper_info = hyper_info
+        self.task_id = task_id
+        self.lower_bounds = torch.tensor([[0, 0, 0], [0, 0, 0], [0, 0, 0]])
+        self.upper_bounds = torch.tensor([[1, 1, 1], [5, 10, 15], [1, 1, 1]])
+        self.negate_coef = torch.where(if_negate, -1, 1)
+        self.negate_bias = torch.where(if_negate, 1, 0)
+
+    def _prepare_normalize(self, solution: torch.tensor):
+        obj_num = self.n_obj
+        task_id = self.task_id
+        # solution = torch.from_numpy(solution)
+        if not isinstance(solution, torch.Tensor):
+            if isinstance(solution, np.ndarray):
+                solution = torch.from_numpy(solution)
+            if isinstance(solution, list):
+                solution = torch.Tensor(solution)
+
+        if len(solution.shape) == 1:
+            solution = solution[None, :]
+
+        solution[:, :obj_num] = (solution[:, :obj_num] - self.lower_bounds[:, task_id]) / \
+                                (self.upper_bounds[:, task_id] - self.lower_bounds[:, task_id])
+        solution[:, :obj_num] = self.negate_coef * solution[:, :obj_num] + self.negate_bias
+
+        solution[solution[:, :obj_num].max(1).values > 1, :obj_num] = 1.1
+
+        return solution
+
+    def transform_value(self, param, batch_size):
+        """
+        Transform a sequence of random parameters into valid trial vector
+        """
+        new_param = param.copy()
+        # print("param in type of {}.".format(param.dtype))
+        # print("new_param in type of {}.".format(new_param.dtype))
+        if len(new_param.shape) == 1:
+            new_param = new_param[None, :]
+
+        info_list = self.hyper_info['info_list']
+        info_xs = self.hyper_info['info_xs']
+        bool_param = np.zeros((len(info_list),), dtype=bool)
+
+        for i, attr_item in enumerate(info_list):
+            trans_float = isinstance(info_xs[attr_item], ConfigSpace.hyperparameters.UniformFloatHyperparameter)
+            trans_int = isinstance(info_xs[attr_item], ConfigSpace.hyperparameters.UniformIntegerHyperparameter)
+            trans_log = info_xs[attr_item].log
+            trans_lower = info_xs[attr_item].lower
+            trans_upper = info_xs[attr_item].upper
+
+            # TODO:
+            # Enable batch_size larger than 1 or equals to 1
+            if trans_float:
+                if trans_log:
+                    new_item = np.exp(
+                        np.log(trans_lower) + (np.log(trans_upper) - np.log(trans_lower)) * new_param[:, i])
+                    new_item = np.clip(new_item, trans_lower, trans_upper)
+                else:
+                    new_item = trans_lower + (trans_upper - trans_lower) * new_param[:, i]
+            if trans_int:
+                bool_param[i] = True
+                if trans_log:
+                    new_item = np.round(np.exp(
+                        np.log(trans_lower) + (np.log(trans_upper) - np.log(trans_lower)) * new_param[:, i]))
+                    new_item = np.clip(new_item, trans_lower, trans_upper)
+                else:
+                    new_item = np.round(trans_lower + (trans_upper - trans_lower) * new_param[:, i])
+
+            # print("For {} parameter, if_float is {}, if_int is {}".format(info_list[i],
+            #                                                               trans_float,
+            #                                                               trans_int))
+            new_param[:, i] = new_item
+
+        # print("result in type of {}.".format(new_param.dtype))
+        # print(new_param)
+        if batch_size == 1:
+            # print(new_param[0])
+            # print(bool_param)
+            return new_param[0], bool_param
+        else:
+            return new_param, bool_param
+
+    def evaluate(self, params):
+        """
+        task_id: int -- indicates the index of the task
+        params: dict -- indicates the parameters for each dimension
+        task_list: list -- the list of ConfigSpace objects
+        set_list: list -- the list of BenchmarkSet objects
+        """
+
+        params = params.numpy()
+
+        if len(params.shape) == 1:
+            batch_size = 1
+        else:
+            batch_size = params.shape[0]
+        # 1. Transfer the params into the legit form for each dimension
+        # print("original params is {}".format(params))
+        trans_params, bool_params = self.transform_value(params, batch_size)
+        # print("transformed params is {}".format(trans_params))
+        xs = self.hyper_info['space_list'][self.task_id].sample_configuration(size=batch_size)
+        info_list = self.hyper_info['info_list']
+        info_xs = self.hyper_info['info_xs']
+        set_list = self.hyper_info['b_list']
+
+        if batch_size == 1:
+            # print(xs)
+            xs["booster"] = "gbtree"
+            xs["trainsize"] = 1.0
+
+            # Assign the params
+            for i, attr_item in enumerate(info_list):
+                # print("Current attr {} with type {}.".format(xs[attr_item].__class__, trans_params[i].__class__))
+                if bool_params[i]:
+                    xs[attr_item] = int(trans_params[i])
+                else:
+                    tmp_float = float(trans_params[i])
+                    if tmp_float < info_xs[attr_item].lower:
+                        xs[attr_item] = info_xs[attr_item].lower
+                    elif tmp_float > info_xs[attr_item].upper:
+                        xs[attr_item] = info_xs[attr_item].upper
+                    else:
+                        xs[attr_item] = tmp_float
+
+            # 2. Extract the corresponding BenchmarkSet object
+            # 3. Set up the configuration space
+            # 4. Obtain the evalutation vector
+            # print("Check out the solution: {}".format(xs))
+
+            tmp_obj = {'obj': [set_list[self.task_id].objective_function(xs)[0][i] for i in self.obj_list],
+                       'sol': params}['obj']
+            final_obj = self._prepare_normalize(tmp_obj)
+            return final_obj
+
+        else:
+            for cur_id, cur_sample in enumerate(xs):
+                xs[cur_id]["booster"] = "gbtree"
+                xs[cur_id]["trainsize"] = 1.0
+
+                # Assign the params
+                for i, attr_item in enumerate(info_list):
+                    # print("Current attr {} with type {}.".format(xs[attr_item].__class__, trans_params[i].__class__))
+                    if bool_params[i]:
+                        xs[cur_id][attr_item] = int(trans_params[cur_id][i])
+                    else:
+                        tmp_float = float(trans_params[cur_id][i])
+                        if tmp_float < info_xs[attr_item].lower:
+                            xs[cur_id][attr_item] = info_xs[attr_item].lower
+                        elif tmp_float > info_xs[attr_item].upper:
+                            xs[cur_id][attr_item] = info_xs[attr_item].upper
+                        else:
+                            xs[cur_id][attr_item] = tmp_float
+
+            # evaluate all the solutions
+            results = set_list[self.task_id].objective_function(xs)
+            # prepare a numpy array to store all the info
+            col_size = len(self.obj_list)
+            result_obj = np.zeros((batch_size, col_size))
+            for cur_batch in range(batch_size):
+                for cur_col_id, cur_col in enumerate(self.obj_list):
+                    result_obj[cur_batch, cur_col_id] = results[cur_batch][cur_col]
+
+            tmp_obj = {'obj': result_obj, 'sol': params}['obj']
+            final_obj = self._prepare_normalize(tmp_obj)
+            return final_obj
 
 
 class mDTLZ1:
