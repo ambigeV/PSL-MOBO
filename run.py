@@ -30,7 +30,7 @@ from model import ParetoSetModel
 ins_list = ['hyper1', 'hyper2', 'hyper3']
 
 # time slot to store rmse results
-rmse_list = [25, 50, 75, 99]
+rmse_list = [21, 50, 75, 99]
 # rmse_list = [150, 200, 250, 299]
 
 # number of independent runs
@@ -38,7 +38,7 @@ n_run = 1 #20
 # number of initialized solutions
 n_init = 20
 # number of iterations, and batch size per iteration
-n_iter = 30
+n_iter = 22
 n_sample = 1
 
 # PSL 
@@ -142,10 +142,10 @@ for range_id, test_id in enumerate(problem_id):
 
         # prepare the ground true pareto front and weights for evaluation
         if if_hyper:
-            tmp_path = "./nsgaiii_xgboost_100.pth"
-            tmp_path_list = ["./nsgaiii_xgboost_25.pth",
-                             "./nsgaiii_xgboost_50.pth",
-                             "./nsgaiii_xgboost_75.pth"]
+            tmp_path = "./nsgaiii_xgboost_dart_100.pth"
+            tmp_path_list = ["./nsgaiii_xgboost_dart_25.pth",
+                             "./nsgaiii_xgboost_dart_50.pth",
+                             "./nsgaiii_xgboost_dart_75.pth"]
             tmp_result = torch.load(tmp_path)
             for cur_path in tmp_path_list:
                 result_multi.append(torch.load(cur_path))
@@ -413,7 +413,7 @@ for range_id, test_id in enumerate(problem_id):
 
     print("DEBUG")
 
-    torch.save(my_dict, "./server/{}_obj{}_dim{}_{}.pth".
+    torch.save(my_dict, "./server/{}_dart_obj{}_dim{}_{}.pth".
                format(problem_list[0].current_name,
                       my_dict['obj'],
                       my_dict['dim'],

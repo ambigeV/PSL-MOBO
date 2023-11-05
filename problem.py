@@ -129,10 +129,11 @@ class hyper:
         info_xs = b._get_config_space()
 
         if instance == "iaml_xgboost":
-            info_list = info_list[2:-2]
-            print("Before: {}.".format(info_list))
-            info_list.remove("rate_drop")
-            print("After: {}.".format(info_list))
+            info_list = info_list[2:-1]
+            # info_list = info_list[2:-2]
+            # print("Before: {}.".format(info_list))
+            # info_list.remove("rate_drop")
+            # print("After: {}.".format(info_list))
         else:
             info_list = info_list[1:]
         print("Start Leaving Configure Space")
@@ -255,7 +256,7 @@ class hyper:
 
         if batch_size == 1:
             # print(xs)
-            xs["booster"] = "gbtree"
+            xs["booster"] = "dart"
             xs["trainsize"] = 1.0
 
             # Assign the params
@@ -284,7 +285,7 @@ class hyper:
 
         else:
             for cur_id, cur_sample in enumerate(xs):
-                xs[cur_id]["booster"] = "gbtree"
+                xs[cur_id]["booster"] = "dart"
                 xs[cur_id]["trainsize"] = 1.0
 
                 # Assign the params
