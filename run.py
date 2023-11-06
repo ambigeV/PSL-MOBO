@@ -30,15 +30,15 @@ from model import ParetoSetModel
 ins_list = ['hyper1', 'hyper2', 'hyper3']
 
 # time slot to store rmse results
-rmse_list = [21, 50, 75, 99]
-# rmse_list = [150, 200, 250, 299]
+# rmse_list = [21, 50, 75, 99]
+rmse_list = [150, 200, 250, 299]
 
 # number of independent runs
-n_run = 1 #20
+n_run = 10 #20
 # number of initialized solutions
-n_init = 20
+n_init = 100
 # number of iterations, and batch size per iteration
-n_iter = 22
+n_iter = 300
 n_sample = 1
 
 # PSL 
@@ -53,8 +53,8 @@ n_candidate = 1000
 # number of optional local search
 n_local = 1
 # device
-# device = 'cuda'
-device = 'cpu'
+device = 'cuda'
+# device = 'cpu'
 # benchmark or hyper
 if_hyper = True
 # -----------------------------------------------------------------------------
@@ -359,7 +359,7 @@ for range_id, test_id in enumerate(problem_id):
 
                     # x --> y
                     current_result = problem_list[task_id].evaluate(predict_x)
-                    current_rmse, _ = rmse(front_list[task_id].to(device), current_result)
+                    current_rmse, _ = rmse(front_list[task_id].to(device), current_result.to(device))
                     rmse_records.append(current_rmse)
 
                     if if_hyper:
@@ -370,7 +370,8 @@ for range_id, test_id in enumerate(problem_id):
 
                             # x --> y
                             current_result_multi = problem_list[task_id].evaluate(predict_x_multi)
-                            current_rmse_multi, _ = rmse(front_multi[rmse_id][task_id].to(device), current_result_multi)
+                            current_rmse_multi, _ = rmse(front_multi[rmse_id][task_id].to(device),
+                                                         current_result_multi.to(device))
                             rmse_multi[rmse_id].append(current_rmse_multi)
 
             # record the ending time for each iteration

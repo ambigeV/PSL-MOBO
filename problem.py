@@ -239,6 +239,8 @@ class hyper:
         set_list: list -- the list of BenchmarkSet objects
         """
 
+        if isinstance(params, torch.Tensor):
+            params = params.cpu()
         params = params.numpy()
 
         if len(params.shape) == 1:
