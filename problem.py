@@ -98,6 +98,9 @@ def get_problem(name, *args, **kwargs):
         'hyper1': hyper(task_id=0),
         'hyper2': hyper(task_id=1),
         'hyper3': hyper(task_id=2),
+        'hyper_r1': hyper(task_id=0, instance="iaml_ranger"),
+        'hyper_r2': hyper(task_id=1, instance="iaml_ranger"),
+        'hyper_r3': hyper(task_id=2, instance="iaml_ranger"),
  }
 
     if name not in PROBLEM:
@@ -134,6 +137,8 @@ class hyper:
             # print("Before: {}.".format(info_list))
             # info_list.remove("rate_drop")
             # print("After: {}.".format(info_list))
+        elif instance == "iaml_ranger":
+            info_list = info_list[4:-1]
         else:
             info_list = info_list[1:]
         print("Start Leaving Configure Space")
@@ -146,14 +151,21 @@ class hyper:
 
         if_negate = torch.tensor([False, False, False])
 
-        self.current_name = "hp"
+        if instance == "iaml_xgboost":
+            self.current_name = "hp"
+        elif instance == "iaml_ranger":
+            self.current_name = "hp_ranger"
         self.obj_list = ['mmce', 'rammodel', 'ias']
         self.n_dim = len(info_list)
         self.n_obj = len(self.obj_list)
         self.hyper_info = hyper_info
         self.task_id = task_id
-        self.lower_bounds = torch.tensor([[0, 0, 0], [0, 0, 0], [0, 0, 0]])
-        self.upper_bounds = torch.tensor([[1, 1, 1], [5, 10, 15], [1, 1, 1]])
+        if instance == "iaml_xgboost":
+            self.lower_bounds = torch.tensor([[0, 0, 0], [0, 0, 0], [0, 0, 0]])
+            self.upper_bounds = torch.tensor([[1, 1, 1], [5, 10, 15], [1, 1, 1]])
+        elif instance == "iaml_ranger":
+            self.lower_bounds = torch.tensor([[0, 0, 0], [0, 0, 0], [0, 0, 0]])
+            self.upper_bounds = torch.tensor([[1, 1, 1], [35, 180, 180], [3.8, 1.6, 2.6]])
         self.negate_coef = torch.where(if_negate, -1, 1)
         self.negate_bias = torch.where(if_negate, 1, 0)
 
@@ -258,7 +270,12 @@ class hyper:
 
         if batch_size == 1:
             # print(xs)
-            xs["booster"] = "dart"
+            if self.current_name == "hp":
+                xs["booster"] = "dart"
+            if self.current_name == "hp_ranger":
+                xs["splitrule"] = 'extratrees'
+                xs["replace"] = 'TRUE'
+                xs["respect.unordered.factors"] = 'order'
             xs["trainsize"] = 1.0
 
             # Assign the params
@@ -287,7 +304,12 @@ class hyper:
 
         else:
             for cur_id, cur_sample in enumerate(xs):
-                xs[cur_id]["booster"] = "dart"
+                if self.current_name == "hp":
+                    xs[cur_id]["booster"] = "dart"
+                if self.current_name == "hp_ranger":
+                    xs[cur_id]["splitrule"] = 'extratrees'
+                    xs[cur_id]["replace"] = 'TRUE'
+                    xs[cur_id]["respect.unordered.factors"] = 'order'
                 xs[cur_id]["trainsize"] = 1.0
 
                 # Assign the params

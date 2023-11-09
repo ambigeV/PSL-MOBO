@@ -17,6 +17,9 @@ from pymoo.util.nds.non_dominated_sorting import NonDominatedSorting
 from mobo.surrogate_model import GaussianProcess
 from mobo.transformation import StandardTransform
 
+# new sampler for fairness
+from scipy.stats import qmc
+
 from model import ParetoSetModel
 
 # -----------------------------------------------------------------------------
@@ -27,7 +30,8 @@ from model import ParetoSetModel
 # ins_list = ['mdtlz1_4_1', 'mdtlz1_4_2', 'mdtlz1_4_3', 'mdtlz1_4_4',
 #             'mdtlz2_4_1', 'mdtlz2_4_2', 'mdtlz2_4_3', 'mdtlz2_4_4',
 #             'mdtlz3_4_1', 'mdtlz3_4_2', 'mdtlz3_4_3', 'mdtlz3_4_4']
-ins_list = ['hyper1', 'hyper2', 'hyper3']
+# ins_list = ['hyper1', 'hyper2', 'hyper3']
+ins_list = ['hyper_r1', 'hyper_r2', 'hyper_r3']
 
 # time slot to store rmse results
 # rmse_list = [21, 50, 75, 99]
@@ -45,13 +49,13 @@ n_sample = 1
 # number of learning steps
 n_steps = 500
 # number of sampled preferences per step
-n_pref_update = 10 
+n_pref_update = 1
 # coefficient of LCB
-coef_lcb = 0.1
+coef_lcb = 0.5
 # number of sampled candidates on the approxiamte Pareto front
 n_candidate = 1000 
 # number of optional local search
-n_local = 1
+n_local = 0
 # device
 device = 'cuda'
 # device = 'cpu'
@@ -110,7 +114,10 @@ for range_id, test_id in enumerate(problem_id):
         Z_list = []
         for id_id, problem in enumerate(problem_list):
             # initialize n_init solutions
-            x_init = lhs(n_dim_list[id_id], n_init)
+            # x_init = lhs(n_dim_list[id_id], n_init)
+
+            sampler = qmc.LatinHypercube(n_dim_list[id_id])
+            x_init = sampler.random(n_init)
             y_init = problem.evaluate(torch.from_numpy(x_init).to(device))
 
             if isinstance(y_init, torch.Tensor):
@@ -142,10 +149,10 @@ for range_id, test_id in enumerate(problem_id):
 
         # prepare the ground true pareto front and weights for evaluation
         if if_hyper:
-            tmp_path = "./nsgaiii_xgboost_dart_100.pth"
-            tmp_path_list = ["./nsgaiii_xgboost_dart_25.pth",
-                             "./nsgaiii_xgboost_dart_50.pth",
-                             "./nsgaiii_xgboost_dart_75.pth"]
+            tmp_path = "./nsgaiii_ranger_100.pth"
+            tmp_path_list = ["./nsgaiii_ranger_25.pth",
+                             "./nsgaiii_ranger_50.pth",
+                             "./nsgaiii_ranger_75.pth"]
             tmp_result = torch.load(tmp_path)
             for cur_path in tmp_path_list:
                 result_multi.append(torch.load(cur_path))
@@ -414,7 +421,7 @@ for range_id, test_id in enumerate(problem_id):
 
     print("DEBUG")
 
-    torch.save(my_dict, "./server/{}_dart_obj{}_dim{}_{}.pth".
+    torch.save(my_dict, "./server2/{}_obj{}_dim{}_{}.pth".
                format(problem_list[0].current_name,
                       my_dict['obj'],
                       my_dict['dim'],
