@@ -27,48 +27,53 @@ from model import ParetoSetModel
 # ins_list = ['f1','f2','f3','f4','f5','f6',
 #             'vlmop1','vlmop2', 'vlmop3', 'dtlz2',
 #             're21', 're23', 're33','re36','re37']
-# ins_list = ['mdtlz1_4_1', 'mdtlz1_4_2', 'mdtlz1_4_3', 'mdtlz1_4_4',
-#             'mdtlz2_4_1', 'mdtlz2_4_2', 'mdtlz2_4_3', 'mdtlz2_4_4',
-#             'mdtlz3_4_1', 'mdtlz3_4_2', 'mdtlz3_4_3', 'mdtlz3_4_4']
+ins_list = ['mdtlz1_4_1', 'mdtlz1_4_2', 'mdtlz1_4_3', 'mdtlz1_4_4',
+            'mdtlz2_4_1', 'mdtlz2_4_2', 'mdtlz2_4_3', 'mdtlz2_4_4',
+            'mdtlz3_4_1', 'mdtlz3_4_2', 'mdtlz3_4_3', 'mdtlz3_4_4']
+# ins_list = ['invdtlz1_4_1', 'invdtlz1_4_2', 'invdtlz1_4_3', 'invdtlz1_4_4',
+#             'invdtlz2_4_1', 'invdtlz2_4_2', 'invdtlz2_4_3', 'invdtlz2_4_4',
+#             'invdtlz3_4_1', 'invdtlz3_4_2', 'invdtlz3_4_3', 'invdtlz3_4_4']
 # ins_list = ['hyper1', 'hyper2', 'hyper3']
-ins_list = ['hyper_r1', 'hyper_r2', 'hyper_r3']
+# problem list for the ranger problem set
+# ins_list = ['hyper_r1', 'hyper_r2', 'hyper_r3']
 
 # time slot to store rmse results
-# rmse_list = [21, 50, 75, 99]
-rmse_list = [150, 200, 250, 299]
+rmse_list = [25, 50, 75, 99]
+# rmse_list = [150, 200, 250, 299]
 
 # number of independent runs
 n_run = 10 #20
 # number of initialized solutions
-n_init = 100
+n_init = 20
 # number of iterations, and batch size per iteration
-n_iter = 300
+n_iter = 100
 n_sample = 1
 
 # PSL 
 # number of learning steps
-n_steps = 500
+n_steps = 50
 # number of sampled preferences per step
 n_pref_update = 1
 # coefficient of LCB
 coef_lcb = 0.5
 # number of sampled candidates on the approxiamte Pareto front
-n_candidate = 1000 
+n_candidate = 100
 # number of optional local search
 n_local = 0
 # device
-device = 'cuda'
+device = 'cuda:3'
 # device = 'cpu'
 # benchmark or hyper
-if_hyper = True
+if_hyper = False
 # -----------------------------------------------------------------------------
 
 hv_list = {}
 
-# problem_id = [0, 4, 8]
-# problem_range = [4, 4, 4]
-problem_id = [0]
-problem_range = [3]
+problem_id = [0, 4, 8]
+problem_range = [4, 4, 4]
+# problem_id = [0]
+# problem_range = [4]
+# problem_range = [3]
 
 for range_id, test_id in enumerate(problem_id):
     print("Start with {}.".format(ins_list[test_id]))
@@ -82,7 +87,7 @@ for range_id, test_id in enumerate(problem_id):
     n_obj_list = []
     for temp_id in range(problem_range[range_id]):
         problem = get_problem(ins_list[test_id+temp_id])
-        print("DEBUG")
+        # print("DEBUG")
         n_dim = problem.n_dim
         n_obj = problem.n_obj
 
@@ -149,10 +154,10 @@ for range_id, test_id in enumerate(problem_id):
 
         # prepare the ground true pareto front and weights for evaluation
         if if_hyper:
-            tmp_path = "./nsgaiii_ranger_100.pth"
-            tmp_path_list = ["./nsgaiii_ranger_25.pth",
-                             "./nsgaiii_ranger_50.pth",
-                             "./nsgaiii_ranger_75.pth"]
+            tmp_path = "./nsgaiii_singel_xgboost_100.pth"
+            tmp_path_list = ["./nsgaiii_singel_xgboost_25.pth",
+                             "./nsgaiii_singel_xgboost_50.pth",
+                             "./nsgaiii_singel_xgboost_75.pth"]
             tmp_result = torch.load(tmp_path)
             for cur_path in tmp_path_list:
                 result_multi.append(torch.load(cur_path))
@@ -421,8 +426,8 @@ for range_id, test_id in enumerate(problem_id):
 
     print("DEBUG")
 
-    torch.save(my_dict, "./server2/{}_obj{}_dim{}_{}.pth".
+    torch.save(my_dict, "./server_server/{}_obj{}_dim{}_{}.pth".
                format(problem_list[0].current_name,
                       my_dict['obj'],
                       my_dict['dim'],
-                      "PSL"))
+                      "PSL-MOBO"))
