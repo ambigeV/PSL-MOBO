@@ -114,6 +114,12 @@ def get_problem(name, *args, **kwargs):
         'hyper_r1': hyper(task_id=0, instance="iaml_ranger"),
         'hyper_r2': hyper(task_id=1, instance="iaml_ranger"),
         'hyper_r3': hyper(task_id=2, instance="iaml_ranger"),
+        'method1_1': hyper(task_num=2, task_id=0, if_methods=True, problem_two_inner_id=0),
+        'method1_2': hyper(task_num=2, task_id=1, if_methods=True, problem_two_inner_id=0),
+        'method2_1': hyper(task_num=2, task_id=0, if_methods=True, problem_two_inner_id=1),
+        'method2_2': hyper(task_num=2, task_id=1, if_methods=True, problem_two_inner_id=1),
+        'method3_1': hyper(task_num=2, task_id=0, if_methods=True, problem_two_inner_id=2),
+        'method3_2': hyper(task_num=2, task_id=1, if_methods=True, problem_two_inner_id=2)
  }
 
     if name not in PROBLEM:
@@ -123,7 +129,8 @@ def get_problem(name, *args, **kwargs):
 
 
 class hyper:
-    def __init__(self, task_num=3, task_id=0, instance="iaml_xgboost"):
+    def __init__(self, task_num=3, task_id=0, instance="iaml_xgboost",
+                 if_methods: bool = False, problem_two_inner_id: int = 0):
         local_config.init_config()
         local_config.set_data_path("yahpo_data")
 
@@ -135,8 +142,12 @@ class hyper:
         for i in range(task_num):
             b_temp = BenchmarkSet(scenario=instance)
             # In the new settings, we set up the problem indices all as 2 (the 3rd task)
-            b_temp.set_instance(b_temp.instances[2])
+            # b_temp.set_instance(b_temp.instances[2])
             # b_temp.set_instance(b_temp.instances[i])
+            if if_methods:
+                b_temp.set_instance(b_temp.instances[problem_two_inner_id])
+            else:
+                b_temp.set_instance(b_temp.instances[i])
             b_list.append(b_temp)
 
         space_list = []
@@ -147,11 +158,11 @@ class hyper:
         info_xs = b._get_config_space()
 
         if instance == "iaml_xgboost":
-            # info_list = info_list[2:-1]
-            info_list = info_list[2:-2]
-            print("Before: {}.".format(info_list))
-            info_list.remove("rate_drop")
-            print("After: {}.".format(info_list))
+            info_list = info_list[2:-1]
+            # info_list = info_list[2:-2]
+            # print("Before: {}.".format(info_list))
+            # info_list.remove("rate_drop")
+            # print("After: {}.".format(info_list))
         elif instance == "iaml_ranger":
             info_list = info_list[4:-1]
         else:
@@ -167,14 +178,26 @@ class hyper:
         if_negate = torch.tensor([False, False, False])
 
         if instance == "iaml_xgboost":
-            self.current_name = "hp"
+            tmp_str_list = ["first", "second", "third"]
+            if if_methods:
+                self.current_name = "two_{}_new".format(
+                    tmp_str_list[problem_two_inner_id])
+            else:
+                self.current_name = "hp"
         elif instance == "iaml_ranger":
             self.current_name = "hp_ranger"
         self.obj_list = ['mmce', 'rammodel', 'ias']
-        self.n_dim = len(info_list)
+
+        if if_methods:
+            self.n_dim = len(info_list) - 2
+        else:
+            self.n_dim = len(info_list)
         self.n_obj = len(self.obj_list)
         self.hyper_info = hyper_info
         self.task_id = task_id
+        self.if_methods = if_methods
+        self.problem_two_inner_id = problem_two_inner_id
+
         if instance == "iaml_xgboost":
             self.lower_bounds = torch.tensor([[0, 0, 0], [0, 0, 0], [0, 0, 0]])
             self.upper_bounds = torch.tensor([[1, 1, 1], [5, 10, 15], [1, 1, 1]])
@@ -197,8 +220,14 @@ class hyper:
         if len(solution.shape) == 1:
             solution = solution[None, :]
 
-        solution[:, :obj_num] = (solution[:, :obj_num] - self.lower_bounds[:, task_id]) / \
+        if self.if_methods:
+            tmp_id = self.problem_two_inner_id
+            solution[:, :obj_num] = (solution[:, :obj_num] - self.lower_bounds[:, tmp_id]) / \
+                                    (self.upper_bounds[:, tmp_id] - self.lower_bounds[:, tmp_id])
+        else:
+            solution[:, :obj_num] = (solution[:, :obj_num] - self.lower_bounds[:, task_id]) / \
                                 (self.upper_bounds[:, task_id] - self.lower_bounds[:, task_id])
+
         solution[:, :obj_num] = self.negate_coef * solution[:, :obj_num] + self.negate_bias
 
         solution[solution[:, :obj_num].max(1).values > 1, :obj_num] = 1.1
@@ -220,6 +249,9 @@ class hyper:
         bool_param = np.zeros((len(info_list),), dtype=bool)
 
         for i, attr_item in enumerate(info_list):
+            if self.if_methods and (attr_item == "rate_drop" or attr_item == "skip_drop"):
+                continue
+
             trans_float = isinstance(info_xs[attr_item], ConfigSpace.hyperparameters.UniformFloatHyperparameter)
             trans_int = isinstance(info_xs[attr_item], ConfigSpace.hyperparameters.UniformIntegerHyperparameter)
             trans_log = info_xs[attr_item].log
@@ -292,11 +324,26 @@ class hyper:
                 xs["splitrule"] = 'extratrees'
                 xs["replace"] = 'TRUE'
                 xs["respect.unordered.factors"] = 'order'
-            xs["trainsize"] = train_size_list[self.task_id]
+            # xs["trainsize"] = train_size_list[self.task_id]
+            if self.if_methods and self.task_id == 0:
+                xs["booster"] = "gbtree"
+
+            if self.if_methods and self.task_id == 1:
+                xs["booster"] = "dart"
+
+            xs["trainsize"] = 1.0
 
             # Assign the params
             for i, attr_item in enumerate(info_list):
                 # print("Current attr {} with type {}.".format(xs[attr_item].__class__, trans_params[i].__class__))
+                if self.if_methods and xs["booster"] == "gbtree" \
+                        and (attr_item == "rate_drop" or attr_item == "skip_drop"):
+                    continue
+                if self.if_methods and xs["booster"] == "dart" \
+                        and (attr_item == "rate_drop" or attr_item == "skip_drop"):
+                    xs[attr_item] = 0.5
+                    continue
+
                 if bool_params[i]:
                     xs[attr_item] = int(trans_params[i])
                 else:
@@ -327,11 +374,27 @@ class hyper:
                     xs[cur_id]["splitrule"] = 'extratrees'
                     xs[cur_id]["replace"] = 'TRUE'
                     xs[cur_id]["respect.unordered.factors"] = 'order'
-                xs[cur_id]["trainsize"] = train_size_list[self.task_id]
+                # xs[cur_id]["trainsize"] = train_size_list[self.task_id]
+
+                if self.if_methods and self.task_id == 0:
+                    xs[cur_id]["booster"] = "gbtree"
+
+                if self.if_methods and self.task_id == 1:
+                    xs[cur_id]["booster"] = "dart"
+
+                xs[cur_id]["trainsize"] = 1.0
 
                 # Assign the params
                 for i, attr_item in enumerate(info_list):
                     # print("Current attr {} with type {}.".format(xs[attr_item].__class__, trans_params[i].__class__))
+                    if self.if_methods and xs[cur_id]["booster"] == "gbtree" \
+                            and (attr_item == "rate_drop" or attr_item == "skip_drop"):
+                        continue
+                    if self.if_methods and xs[cur_id]["booster"] == "dart" \
+                            and (attr_item == "rate_drop" or attr_item == "skip_drop"):
+                        xs[cur_id][attr_item] = 0.5
+                        continue
+
                     if bool_params[i]:
                         xs[cur_id][attr_item] = int(trans_params[cur_id][i])
                     else:
