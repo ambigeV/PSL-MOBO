@@ -36,19 +36,20 @@ from model import ParetoSetModel
 # ins_list = ['hyper1', 'hyper2', 'hyper3']
 # problem list for the ranger problem set
 # ins_list = ['hyper_r1', 'hyper_r2', 'hyper_r3']
-ins_list = ['method1_1', 'method1_2', 'method2_1',
-            'method2_2', 'method3_1', 'method3_2']
+# ins_list = ['method1_1', 'method1_2', 'method2_1',
+#             'method2_2', 'method3_1', 'method3_2'].
+ins_list = ['re21_t1', 're21_t2', 're21_t3']
 
 # time slot to store rmse results
-# rmse_list = [25, 50, 75, 99]
-rmse_list = [150, 200, 250, 299]
+rmse_list = [25, 50, 75, 99]
+# rmse_list = [150, 200, 250, 299]
 
 # number of independent runs
-n_run = 1 #20
+n_run = 10 #20
 # number of initialized solutions
-n_init = 100
+n_init = 20
 # number of iterations, and batch size per iteration
-n_iter = 300
+n_iter = 100
 n_sample = 1
 
 # PSL 
@@ -63,8 +64,8 @@ n_candidate = 100
 # number of optional local search
 n_local = 0
 # device
-# device = 'cuda:3'
-device = 'cpu'
+device = 'cuda:3'
+# device = 'cpu'
 # benchmark or hyper
 if_hyper = True
 # -----------------------------------------------------------------------------
@@ -73,9 +74,9 @@ hv_list = {}
 
 # problem_id = [0, 4, 8]
 # problem_range = [4, 4, 4]
-problem_id = [0, 2, 4]
-# problem_range = [4]
-problem_range = [2, 2, 2]
+problem_id = [0]
+problem_range = [3]
+# problem_range = [2, 2, 2]
 
 for range_id, test_id in enumerate(problem_id):
     print("Start with {}.".format(ins_list[test_id]))
@@ -157,20 +158,20 @@ for range_id, test_id in enumerate(problem_id):
         # prepare the ground true pareto front and weights for evaluation
         if if_hyper:
             if range_id == 0:
-                tmp_path = "./nsgaiii_two_first_100.pth"
-                tmp_path_list = ["./nsgaiii_two_first_25.pth",
-                                 "./nsgaiii_two_first_50.pth",
-                                 "./nsgaiii_two_first_75.pth"]
+                tmp_path = "./real_one_new_100.pth"
+                tmp_path_list = ["./real_one_new_25.pth",
+                                 "./real_one_new_50.pth",
+                                 "./real_one_new_75.pth"]
             if range_id == 1:
-                tmp_path = "./nsgaiii_two_second_100.pth"
-                tmp_path_list = ["./nsgaiii_two_second_25.pth",
-                                 "./nsgaiii_two_second_50.pth",
-                                 "./nsgaiii_two_second_75.pth"]
+                tmp_path = "./real_two_new_100.pth"
+                tmp_path_list = ["./real_two_new_25.pth",
+                                 "./real_two_new_50.pth",
+                                 "./real_two_new_75.pth"]
             if range_id == 2:
-                tmp_path = "./nsgaiii_two_third_100.pth"
-                tmp_path_list = ["./nsgaiii_two_third_25.pth",
-                                 "./nsgaiii_two_third_50.pth",
-                                 "./nsgaiii_two_third_75.pth"]
+                tmp_path = "./real_two_new_100.pth"
+                tmp_path_list = ["./real_two_new_25.pth",
+                                 "./real_two_new_50.pth",
+                                 "./real_two_new_75.pth"]
             tmp_result = torch.load(tmp_path)
             for cur_path in tmp_path_list:
                 result_multi.append(torch.load(cur_path))
@@ -439,7 +440,7 @@ for range_id, test_id in enumerate(problem_id):
 
     print("DEBUG")
 
-    torch.save(my_dict, "./server_server/{}_obj{}_dim{}_{}.pth".
+    torch.save(my_dict, "./psl_server/{}_obj{}_dim{}_{}.pth".
                format(problem_list[0].current_name,
                       my_dict['obj'],
                       my_dict['dim'],
