@@ -119,7 +119,10 @@ def get_problem(name, *args, **kwargs):
         'method2_1': hyper(task_num=2, task_id=0, if_methods=True, problem_two_inner_id=1),
         'method2_2': hyper(task_num=2, task_id=1, if_methods=True, problem_two_inner_id=1),
         'method3_1': hyper(task_num=2, task_id=0, if_methods=True, problem_two_inner_id=2),
-        'method3_2': hyper(task_num=2, task_id=1, if_methods=True, problem_two_inner_id=2)
+        'method3_2': hyper(task_num=2, task_id=1, if_methods=True, problem_two_inner_id=2),
+        're21_t1': RE21(),
+        're21_t2': RE21(F=10, sigma=8, L=200, E=1.8e5),
+        're21_t3': RE21(F=8, sigma=5, L=200, E=1.5e5)
  }
 
     if name not in PROBLEM:
@@ -1470,12 +1473,18 @@ class DTLZ2():
         return objs
     
 class RE21():
-    def __init__(self, n_dim = 4):
-        
-        F = 10.0
-        sigma = 10.0
+    def __init__(self, n_dim=4, F=10.0, sigma=10.0, L=200.0, E=2e5):
+
+        # F = 10.0
+        # E = 2.0 * 1e5
+        # L = 200.0
+        # sigma = 10.0
         tmp_val = F / sigma
-        
+
+        self.F = F
+        self.E = E
+        self.L = L
+
         self.n_dim = n_dim
         self.n_obj = 2
         self.lbound = torch.tensor([tmp_val, np.sqrt(2.0) * tmp_val, np.sqrt(2.0) * tmp_val, tmp_val]).float()
@@ -1484,9 +1493,9 @@ class RE21():
         
     def evaluate(self, x):
         
-        F = 10.0
-        E = 2.0 * 1e5
-        L = 200.0
+        F = self.F
+        E = self.E
+        L = self.L
         
         if x.device.type == 'cuda':        
             self.lbound = self.lbound.cuda()
@@ -1503,8 +1512,7 @@ class RE21():
         objs = torch.stack([f1,f2]).T
         
         return objs
-    
-    
+
 class RE23():
     def __init__(self, n_dim = 4):
         
@@ -1547,8 +1555,46 @@ class RE23():
         objs = torch.stack([f1,f2]).T
         
         return objs
-    
-    
+
+class RE24():
+    def __init__(self, n_dim=4):
+        self.n_dim = n_dim
+        self.n_obj = 2
+        self.lbound = torch.tensor([1, 1, 10, 10]).float()
+        self.ubound = torch.tensor([100, 100, 200, 240]).float()
+        self.nadir_point = [5852.05896876, 1288669.78054]
+
+    def evaluate(self, x):
+        if x.device.type == 'cuda':
+            self.lbound = self.lbound.cuda()
+            self.ubound = self.ubound.cuda()
+
+        x = x * (self.ubound - self.lbound) + self.lbound
+
+        x1 = 0.0625 * torch.round(x[:, 0])
+        x2 = 0.0625 * torch.round(x[:, 1])
+        x3 = x[:, 2]
+        x4 = x[:, 3]
+
+        # First original objective function
+        f1 = (0.6224 * x1 * x3 * x4) + (1.7781 * x2 * x3 * x3) + (3.1661 * x1 * x1 * x4) + (19.84 * x1 * x1 * x3)
+        f1 = f1.float()
+
+        # Original constraint functions
+        g1 = x1 - (0.0193 * x3)
+        g2 = x2 - (0.00954 * x3)
+        g3 = (np.pi * x3 * x3 * x4) + ((4.0 / 3.0) * (np.pi * x3 * x3 * x3)) - 1296000
+
+        g = torch.stack([g1, g2, g3])
+        z = torch.zeros(g.shape).cuda().to(torch.float64)
+        g = torch.where(g < 0, -g, z)
+
+        f2 = torch.sum(g, axis=0).to(torch.float64)
+
+        objs = torch.stack([f1, f2]).T
+
+        return objs
+
 class RE33():
     def __init__(self, n_dim = 4):
         
