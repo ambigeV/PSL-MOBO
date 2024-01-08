@@ -38,7 +38,8 @@ from model import ParetoSetModel
 # ins_list = ['hyper_r1', 'hyper_r2', 'hyper_r3']
 # ins_list = ['method1_1', 'method1_2', 'method2_1',
 #             'method2_2', 'method3_1', 'method3_2'].
-ins_list = ['re21_t1', 're21_t2', 're21_t3']
+# ins_list = ['re21_t1', 're21_t2', 're21_t3']
+ins_list = ['re24_t1', 're24_t2', 're24_t3']
 
 # time slot to store rmse results
 rmse_list = [25, 50, 75, 99]
@@ -64,7 +65,7 @@ n_candidate = 100
 # number of optional local search
 n_local = 0
 # device
-device = 'cuda:3'
+device = 'cuda:0'
 # device = 'cpu'
 # benchmark or hyper
 if_hyper = True

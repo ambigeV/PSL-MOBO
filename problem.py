@@ -122,7 +122,10 @@ def get_problem(name, *args, **kwargs):
         'method3_2': hyper(task_num=2, task_id=1, if_methods=True, problem_two_inner_id=2),
         're21_t1': RE21(),
         're21_t2': RE21(F=10, sigma=8, L=200, E=1.8e5),
-        're21_t3': RE21(F=8, sigma=5, L=200, E=1.5e5)
+        're21_t3': RE21(F=8, sigma=5, L=200, E=1.5e5),
+        're24_t1': RE24(sigma_b_max=700, tau_max=450, delta_max=1.5),
+        're24_t2': RE24(sigma_b_max=800, tau_max=450, delta_max=1.5),
+        're24_t3': RE24(sigma_b_max=700, tau_max=350, delta_max=1.3),
  }
 
     if name not in PROBLEM:
@@ -1485,6 +1488,7 @@ class RE21():
         self.E = E
         self.L = L
 
+        self.current_name = "real_one"
         self.n_dim = n_dim
         self.n_obj = 2
         self.lbound = torch.tensor([tmp_val, np.sqrt(2.0) * tmp_val, np.sqrt(2.0) * tmp_val, tmp_val]).float()
@@ -1557,11 +1561,18 @@ class RE23():
         return objs
 
 class RE24():
-    def __init__(self, n_dim=4):
+    def __init__(self, n_dim=2, sigma_b_max=700, tau_max=450, delta_max=1.5):
+
+        self.sigma_b_max = sigma_b_max
+        self.tau_max = tau_max
+        self.delta_max = delta_max
+
+        self.current_name = "real_two"
+
         self.n_dim = n_dim
         self.n_obj = 2
-        self.lbound = torch.tensor([1, 1, 10, 10]).float()
-        self.ubound = torch.tensor([100, 100, 200, 240]).float()
+        self.lbound = torch.tensor([0.5, 4]).float()
+        self.ubound = torch.tensor([4, 50]).float()
         self.nadir_point = [5852.05896876, 1288669.78054]
 
     def evaluate(self, x):
@@ -1571,21 +1582,38 @@ class RE24():
 
         x = x * (self.ubound - self.lbound) + self.lbound
 
-        x1 = 0.0625 * torch.round(x[:, 0])
-        x2 = 0.0625 * torch.round(x[:, 1])
-        x3 = x[:, 2]
-        x4 = x[:, 3]
+        x1 = x[:, 0]
+        x2 = x[:, 1]
 
         # First original objective function
-        f1 = (0.6224 * x1 * x3 * x4) + (1.7781 * x2 * x3 * x3) + (3.1661 * x1 * x1 * x4) + (19.84 * x1 * x1 * x3)
+        # f1 = (0.6224 * x1 * x3 * x4) + (1.7781 * x2 * x3 * x3) + (3.1661 * x1 * x1 * x4) + (19.84 * x1 * x1 * x3)
+        f1 = x1 + 120 * x2
         f1 = f1.float()
 
-        # Original constraint functions
-        g1 = x1 - (0.0193 * x3)
-        g2 = x2 - (0.00954 * x3)
-        g3 = (np.pi * x3 * x3 * x4) + ((4.0 / 3.0) * (np.pi * x3 * x3 * x3)) - 1296000
+        # Constraint variables
+        E = 7 * 1e5
 
-        g = torch.stack([g1, g2, g3])
+        sigma_b = 4500 / (x1 * x2)
+        sigma_b_max = self.sigma_b_max
+
+        tau = 1800 / x2
+        tau_max = self.tau_max
+
+        delta = 56.2 * 1e4 / (E * x1 * x2 * x2)
+        delta_max = 1.5
+
+        sigma_k = (E * x1 * x1) / 100
+
+        # Original constraint functions
+        # g1 = x1 - (0.0193 * x3)
+        # g2 = x2 - (0.00954 * x3)
+        # g3 = (np.pi * x3 * x3 * x4) + ((4.0 / 3.0) * (np.pi * x3 * x3 * x3)) - 1296000
+        g1 = 1.0 - sigma_b / sigma_b_max
+        g2 = 1.0 - tau / tau_max
+        g3 = 1.0 - delta / delta_max
+        g4 = 1.0 - sigma_b / sigma_k
+
+        g = torch.stack([g1, g2, g3, g4])
         z = torch.zeros(g.shape).cuda().to(torch.float64)
         g = torch.where(g < 0, -g, z)
 
