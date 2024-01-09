@@ -1587,7 +1587,7 @@ class RE24():
 
         # First original objective function
         # f1 = (0.6224 * x1 * x3 * x4) + (1.7781 * x2 * x3 * x3) + (3.1661 * x1 * x1 * x4) + (19.84 * x1 * x1 * x3)
-        f1 = x1 + 120 * x2
+        f1 = (x1 + 120 * x2) / (self.ubound[0] + 120 * self.ubound[1])
         f1 = f1.float()
 
         # Constraint variables
@@ -1614,6 +1614,68 @@ class RE24():
         g4 = 1.0 - sigma_b / sigma_k
 
         g = torch.stack([g1, g2, g3, g4])
+        z = torch.zeros(g.shape).cuda().to(torch.float64)
+        g = torch.where(g < 0, -g, z)
+
+        f2 = torch.sum(g, axis=0).to(torch.float64)
+
+        objs = torch.stack([f1, f2]).T
+
+        return objs
+
+class RE25():
+    def __init__(self, n_dim=3, sigma_b_max=700, tau_max=450, delta_max=1.5):
+
+        self.sigma_b_max = sigma_b_max
+        self.tau_max = tau_max
+        self.delta_max = delta_max
+
+        self.current_name = "real_three"
+
+        self.n_dim = n_dim
+        self.n_obj = 2
+        self.lbound = torch.tensor([1, 0.6, 0.009]).float()
+        self.ubound = torch.tensor([70, 30, 0.5]).float()
+        self.nadir_point = [5852.05896876, 1288669.78054]
+
+    def evaluate(self, x):
+        if x.device.type == 'cuda':
+            self.lbound = self.lbound.cuda()
+            self.ubound = self.ubound.cuda()
+
+        x = x * (self.ubound - self.lbound) + self.lbound
+
+        x1 = torch.round(x[:, 0])
+        x2 = x[:, 1]
+        x3 = x[:, 2]
+
+        # First original objective function
+        # f1 = (0.6224 * x1 * x3 * x4) + (1.7781 * x2 * x3 * x3) + (3.1661 * x1 * x1 * x4) + (19.84 * x1 * x1 * x3)
+        f1 = (torch.pi * torch.pi * x2 * x3 * x3 * (x1 + 2)) / \
+             (torch.pi * torch.pi * self.ubound[1] * self.ubound[2] * self.ubound[2] * (self.ubound[0] + 2))
+        f1 = f1.float()
+
+        # Constraint variables
+        S = 1.89 * 1e5
+        C_f = ((4 * (x2 / x3) - 1) / (4 * (x2 / x3) - 4)) + (0.615 * x3) / x2
+        G = 11.5 * 1e6
+        K = (G * x3 * x3 * x3 * x3) / (8 * x1 * x2 * x2 * x2)
+        F_p = 300
+        sigma_p = F_p / K
+        F_max = 1000
+        l_f = (F_max / K) + (1.05 * (x1 + 2) * x3)
+        l_max = 14
+        sigma_pm = 6
+        sigma_w = 1.25
+
+        # Original constraint functions
+        g1 = S - (8 * C_f * F_max * x2) / (torch.pi * x3 * x3 * x3)
+        g2 = l_max - l_f
+        g3 = x2 / x3 - 3
+        g4 = sigma_pm - sigma_p
+        g5 = - sigma_p - (F_max - F_p) / K - 1.05 * (x1 + 2) * x3 + l_f
+        g6 = - sigma_w + (F_max - F_p) / K
+        g = torch.stack([g1, g2, g3, g4, g5, g6])
         z = torch.zeros(g.shape).cuda().to(torch.float64)
         g = torch.where(g < 0, -g, z)
 
