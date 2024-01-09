@@ -126,6 +126,10 @@ def get_problem(name, *args, **kwargs):
         're24_t1': RE24(sigma_b_max=700, tau_max=450, delta_max=1.5),
         're24_t2': RE24(sigma_b_max=800, tau_max=450, delta_max=1.5),
         're24_t3': RE24(sigma_b_max=700, tau_max=350, delta_max=1.3),
+        're25_t1': RE25(F_max=1000, l_max=14, sigma_pm=6),
+        're25_t2': RE25(F_max=800, l_max=14, sigma_pm=6),
+        're25_t3': RE25(F_max=1000, l_max=10, sigma_pm=4),
+
  }
 
     if name not in PROBLEM:
@@ -1624,11 +1628,11 @@ class RE24():
         return objs
 
 class RE25():
-    def __init__(self, n_dim=3, sigma_b_max=700, tau_max=450, delta_max=1.5):
+    def __init__(self, n_dim=3, F_max=1000, l_max=14, sigma_pm=6):
 
-        self.sigma_b_max = sigma_b_max
-        self.tau_max = tau_max
-        self.delta_max = delta_max
+        self.F_max = F_max
+        self.l_max = l_max
+        self.sigma_pm = sigma_pm
 
         self.current_name = "real_three"
 
@@ -1656,16 +1660,17 @@ class RE25():
         f1 = f1.float()
 
         # Constraint variables
+        F_max = self.F_max
+        l_max = self.l_max
+        sigma_pm = self.sigma_pm
+
         S = 1.89 * 1e5
         C_f = ((4 * (x2 / x3) - 1) / (4 * (x2 / x3) - 4)) + (0.615 * x3) / x2
         G = 11.5 * 1e6
         K = (G * x3 * x3 * x3 * x3) / (8 * x1 * x2 * x2 * x2)
         F_p = 300
         sigma_p = F_p / K
-        F_max = 1000
         l_f = (F_max / K) + (1.05 * (x1 + 2) * x3)
-        l_max = 14
-        sigma_pm = 6
         sigma_w = 1.25
 
         # Original constraint functions
