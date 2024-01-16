@@ -82,6 +82,10 @@ def get_problem(name, *args, **kwargs):
         'mdtlz1_4_2': mDTLZ1(m=3, n=6, s=0.75, p=0.5, p_ind=1),
         'mdtlz1_4_3': mDTLZ1(m=3, n=6, s=0.50, p=0.5, p_ind=2),
         'mdtlz1_4_4': mDTLZ1(m=3, n=6, s=0.25, p=0.5, p_ind=3),
+        'ndtlz1_4_1': mDTLZ1(m=3, n=6, s=1.0, p=0.5, p_ind=0),
+        'ndtlz1_4_2': mDTLZ1(m=3, n=6, s=0.90, p=0.5, p_ind=1),
+        'ndtlz1_4_3': mDTLZ1(m=3, n=6, s=0.80, p=0.5, p_ind=2),
+        'ndtlz1_4_4': mDTLZ1(m=3, n=6, s=0.70, p=0.5, p_ind=3),
         'invdtlz1_4_1': invDTLZ1(m=3, n=6, s=1.0, p=0.5, p_ind=0),
         'invdtlz1_4_2': invDTLZ1(m=3, n=6, s=0.75, p=0.5, p_ind=1),
         'invdtlz1_4_3': invDTLZ1(m=3, n=6, s=0.50, p=0.5, p_ind=2),
@@ -93,6 +97,10 @@ def get_problem(name, *args, **kwargs):
         'mdtlz2_4_2': mDTLZ2(m=3, n=6, s=0.75, p=0.5, p_ind=1),
         'mdtlz2_4_3': mDTLZ2(m=3, n=6, s=0.50, p=0.5, p_ind=2),
         'mdtlz2_4_4': mDTLZ2(m=3, n=6, s=0.25, p=0.5, p_ind=3),
+        'ndtlz2_4_1': mDTLZ2(m=3, n=6, s=1.0, p=0.5, p_ind=0),
+        'ndtlz2_4_2': mDTLZ2(m=3, n=6, s=0.90, p=0.5, p_ind=1),
+        'ndtlz2_4_3': mDTLZ2(m=3, n=6, s=0.80, p=0.5, p_ind=2),
+        'ndtlz2_4_4': mDTLZ2(m=3, n=6, s=0.70, p=0.5, p_ind=3),
         'invdtlz2_4_1': invDTLZ2(m=3, n=6, s=1.0, p=0.5, p_ind=0),
         'invdtlz2_4_2': invDTLZ2(m=3, n=6, s=0.75, p=0.5, p_ind=1),
         'invdtlz2_4_3': invDTLZ2(m=3, n=6, s=0.50, p=0.5, p_ind=2),
@@ -104,6 +112,10 @@ def get_problem(name, *args, **kwargs):
         'mdtlz3_4_2': mDTLZ3(m=3, n=6, s=0.75, p=0.5, p_ind=1),
         'mdtlz3_4_3': mDTLZ3(m=3, n=6, s=0.50, p=0.5, p_ind=2),
         'mdtlz3_4_4': mDTLZ3(m=3, n=6, s=0.25, p=0.5, p_ind=3),
+        'ndtlz3_4_1': mDTLZ3(m=3, n=6, s=1.0, p=0.5, p_ind=0),
+        'ndtlz3_4_2': mDTLZ3(m=3, n=6, s=0.90, p=0.5, p_ind=1),
+        'ndtlz3_4_3': mDTLZ3(m=3, n=6, s=0.80, p=0.5, p_ind=2),
+        'ndtlz3_4_4': mDTLZ3(m=3, n=6, s=0.70, p=0.5, p_ind=3),
         'invdtlz3_4_1': invDTLZ3(m=3, n=6, s=1.0, p=0.5, p_ind=0),
         'invdtlz3_4_2': invDTLZ3(m=3, n=6, s=0.75, p=0.5, p_ind=1),
         'invdtlz3_4_3': invDTLZ3(m=3, n=6, s=0.50, p=0.5, p_ind=2),
@@ -129,7 +141,6 @@ def get_problem(name, *args, **kwargs):
         're25_t1': RE25(F_max=1000, l_max=14, sigma_pm=6),
         're25_t2': RE25(F_max=800, l_max=14, sigma_pm=6),
         're25_t3': RE25(F_max=1000, l_max=10, sigma_pm=4),
-
  }
 
     if name not in PROBLEM:
@@ -446,7 +457,7 @@ class mDTLZ1:
         self.p = p
         self.k = n + 1 - m
         self.p_ind = p_ind
-        self.current_name = "DTLZ1"
+        self.current_name = "DTLZ1_new"
         self.nadir_point = [5, 5, 5]
         if p_ind == 0:
             self.p_vec = None
@@ -702,7 +713,7 @@ class mDTLZ2:
         self.p = p
         self.k = n + 1 - m
         self.p_ind = p_ind
-        self.current_name = "DTLZ2"
+        self.current_name = "DTLZ2_new"
         self.nadir_point = [3.5, 3.5, 3.5]
         if p_ind == 0:
             self.p_vec = None
@@ -942,7 +953,7 @@ class mDTLZ3:
         self.p = p
         self.k = n + 1 - m
         self.p_ind = p_ind
-        self.current_name = "DTLZ3"
+        self.current_name = "DTLZ3_new"
         self.nadir_point = [2, 2, 2]
         if p_ind == 0:
             self.p_vec = None

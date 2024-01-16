@@ -30,6 +30,9 @@ from model import ParetoSetModel
 # ins_list = ['mdtlz1_4_1', 'mdtlz1_4_2', 'mdtlz1_4_3', 'mdtlz1_4_4',
 #             'mdtlz2_4_1', 'mdtlz2_4_2', 'mdtlz2_4_3', 'mdtlz2_4_4',
 #             'mdtlz3_4_1', 'mdtlz3_4_2', 'mdtlz3_4_3', 'mdtlz3_4_4']
+ins_list = ['ndtlz1_4_1', 'ndtlz1_4_2', 'ndtlz1_4_3', 'ndtlz1_4_4',
+            'ndtlz2_4_1', 'ndtlz2_4_2', 'ndtlz2_4_3', 'ndtlz2_4_4',
+            'ndtlz3_4_1', 'ndtlz3_4_2', 'ndtlz3_4_3', 'ndtlz3_4_4']
 # ins_list = ['invdtlz1_4_1', 'invdtlz1_4_2', 'invdtlz1_4_3', 'invdtlz1_4_4',
 #             'invdtlz2_4_1', 'invdtlz2_4_2', 'invdtlz2_4_3', 'invdtlz2_4_4',
 #             'invdtlz3_4_1', 'invdtlz3_4_2', 'invdtlz3_4_3', 'invdtlz3_4_4']
@@ -38,8 +41,9 @@ from model import ParetoSetModel
 # ins_list = ['hyper_r1', 'hyper_r2', 'hyper_r3']
 # ins_list = ['method1_1', 'method1_2', 'method2_1',
 #             'method2_2', 'method3_1', 'method3_2'].
-# ins_list = ['re21_t1', 're21_t2', 're21_t3']
-ins_list = ['re24_t1', 're24_t2', 're24_t3']
+# ins_list = ['re21_t1', 're21_t2', 're21_t3',
+#             're24_t1', 're24_t2', 're24_t3',
+#             're25_t1', 're25_t2', 're25_t3']
 
 # time slot to store rmse results
 rmse_list = [25, 50, 75, 99]
@@ -68,15 +72,15 @@ n_local = 0
 device = 'cuda:0'
 # device = 'cpu'
 # benchmark or hyper
-if_hyper = True
+if_hyper = False
 # -----------------------------------------------------------------------------
 
 hv_list = {}
 
-# problem_id = [0, 4, 8]
-# problem_range = [4, 4, 4]
-problem_id = [0]
-problem_range = [3]
+problem_id = [0, 4, 8]
+problem_range = [4, 4, 4]
+# problem_id = [0, 3, 6]
+# problem_range = [3, 3, 3]
 # problem_range = [2, 2, 2]
 
 for range_id, test_id in enumerate(problem_id):
@@ -349,6 +353,8 @@ for range_id, test_id in enumerate(problem_id):
                             best_hv_value = hv_value_subset
                             best_subset = [k]
 
+                    print("Y_p has shape of {}.".format(Y_p.shape))
+                    print("Y_candidate has shape of {}.".format(Y_candidate[best_subset].shape))
                     Y_p = np.vstack([Y_p, Y_candidate[best_subset]])
                     best_subset_list.append(best_subset)
 
