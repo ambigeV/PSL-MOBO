@@ -30,36 +30,49 @@ from model import ParetoSetModel
 # ins_list = ['mdtlz1_4_1', 'mdtlz1_4_2', 'mdtlz1_4_3', 'mdtlz1_4_4',
 #             'mdtlz2_4_1', 'mdtlz2_4_2', 'mdtlz2_4_3', 'mdtlz2_4_4',
 #             'mdtlz3_4_1', 'mdtlz3_4_2', 'mdtlz3_4_3', 'mdtlz3_4_4']
-ins_list = ['ndtlz1_4_1', 'ndtlz1_4_2', 'ndtlz1_4_3', 'ndtlz1_4_4',
-            'ndtlz2_4_1', 'ndtlz2_4_2', 'ndtlz2_4_3', 'ndtlz2_4_4',
-            'ndtlz3_4_1', 'ndtlz3_4_2', 'ndtlz3_4_3', 'ndtlz3_4_4']
+# ins_list = ['mdtlz1_4_1', 'mdtlz1_4_2', 'mdtlz1_4_3', 'mdtlz1_4_4',
+#             'mdtlz2_4_1', 'mdtlz2_4_2', 'mdtlz2_4_3', 'mdtlz2_4_4',
+#             'mdtlz3_4_1', 'mdtlz3_4_2', 'mdtlz3_4_3', 'mdtlz3_4_4']
+# ins_list = ['mdtlz1_4_1', 'mdtlz1_4_2', 'mdtlz1_4_3', 'mdtlz1_4_4']
+# ins_list = ['ndtlz1_4_1', 'ndtlz1_4_2', 'ndtlz1_4_3', 'ndtlz1_4_4',
+#             'ndtlz2_4_1', 'ndtlz2_4_2', 'ndtlz2_4_3', 'ndtlz2_4_4',
+#             'ndtlz3_4_1', 'ndtlz3_4_2', 'ndtlz3_4_3', 'ndtlz3_4_4']
 # ins_list = ['invdtlz1_4_1', 'invdtlz1_4_2', 'invdtlz1_4_3', 'invdtlz1_4_4',
 #             'invdtlz2_4_1', 'invdtlz2_4_2', 'invdtlz2_4_3', 'invdtlz2_4_4',
 #             'invdtlz3_4_1', 'invdtlz3_4_2', 'invdtlz3_4_3', 'invdtlz3_4_4']
 # ins_list = ['hyper1', 'hyper2', 'hyper3']
 # problem list for the ranger problem set
 # ins_list = ['hyper_r1', 'hyper_r2', 'hyper_r3']
-# ins_list = ['method1_1', 'method1_2', 'method2_1',
-#             'method2_2', 'method3_1', 'method3_2'].
+# ins_list = ['method1_1', 'method1_2',
+#             'method2_1', 'method2_2',
+#             'method3_1', 'method3_2',
+#             'method4_1', 'method4_2']
 # ins_list = ['re21_t1', 're21_t2', 're21_t3',
 #             're24_t1', 're24_t2', 're24_t3',
 #             're25_t1', 're25_t2', 're25_t3']
+ins_list = ['p1t1', 'p2t2',
+            'p2t1', 'p2t2',
+            'p3t1', 'p2t2',
+            'p4t1', 'p2t2',
+            'p5t1', 'p2t2',
+            'p6t1', 'p2t2',
+            'p7t1', 'p2t2']
 
 # time slot to store rmse results
-rmse_list = [25, 50, 75, 99]
-# rmse_list = [150, 200, 250, 299]
+# rmse_list = [25, 50, 75, 99]
+rmse_list = [150, 200, 250, 299]
 
 # number of independent runs
 n_run = 10 #20
 # number of initialized solutions
-n_init = 20
+n_init = 100
 # number of iterations, and batch size per iteration
-n_iter = 100
+n_iter = 300
 n_sample = 1
 
 # PSL 
 # number of learning steps
-n_steps = 50
+n_steps = 100
 # number of sampled preferences per step
 n_pref_update = 1
 # coefficient of LCB
@@ -69,21 +82,27 @@ n_candidate = 100
 # number of optional local search
 n_local = 0
 # device
-device = 'cuda:0'
-# device = 'cpu'
+# device = 'cuda:0'
+device = 'cpu'
 # benchmark or hyper
-if_hyper = False
+if_hyper = True
 # -----------------------------------------------------------------------------
 
 hv_list = {}
 
-problem_id = [0, 4, 8]
-problem_range = [4, 4, 4]
+# problem_id = [0, 4, 8]
+# problem_id = [0, 2, 4, 6]
+problem_id = [0, 2, 4, 6, 8, 10, 12]
+problem_range = [2, 2, 2, 2, 2, 2, 2]
+# problem_range = [4, 4, 4]
+# problem_range = [2, 2, 2, 2]
 # problem_id = [0, 3, 6]
 # problem_range = [3, 3, 3]
 # problem_range = [2, 2, 2]
 
 for range_id, test_id in enumerate(problem_id):
+    # if range_id < 3:
+    #     continue
     print("Start with {}.".format(ins_list[test_id]))
     
     # get problem info
@@ -96,7 +115,8 @@ for range_id, test_id in enumerate(problem_id):
     for temp_id in range(problem_range[range_id]):
         problem = get_problem(ins_list[test_id+temp_id])
         # print("DEBUG")
-        n_dim = problem.n_dim
+        # n_dim = problem.n_dim
+        n_dim = 10
         n_obj = problem.n_obj
 
         problem_list.append(problem)
@@ -162,21 +182,31 @@ for range_id, test_id in enumerate(problem_id):
 
         # prepare the ground true pareto front and weights for evaluation
         if if_hyper:
-            if range_id == 0:
-                tmp_path = "./real_one_new_100.pth"
-                tmp_path_list = ["./real_one_new_25.pth",
-                                 "./real_one_new_50.pth",
-                                 "./real_one_new_75.pth"]
-            if range_id == 1:
-                tmp_path = "./real_two_new_100.pth"
-                tmp_path_list = ["./real_two_new_25.pth",
-                                 "./real_two_new_50.pth",
-                                 "./real_two_new_75.pth"]
-            if range_id == 2:
-                tmp_path = "./real_two_new_100.pth"
-                tmp_path_list = ["./real_two_new_25.pth",
-                                 "./real_two_new_50.pth",
-                                 "./real_two_new_75.pth"]
+            tmp_path = "./Benchmark_P{}_100.pth".format(range_id + 1)
+            tmp_path_list = ["./Benchmark_P{}_25.pth".format(range_id + 1),
+                             "./Benchmark_P{}_50.pth".format(range_id + 1),
+                             "./Benchmark_P{}_75.pth".format(range_id + 1)]
+            # if range_id == 0:
+            #     tmp_path = "./nsgaiii_two_first_new_100.pth"
+            #     tmp_path_list = ["./nsgaiii_two_first_new_25.pth",
+            #                      "./nsgaiii_two_first_new_50.pth",
+            #                      "./nsgaiii_two_first_new_75.pth"]
+            # if range_id == 1:
+            #     tmp_path = "./nsgaiii_two_second_new_100.pth"
+            #     tmp_path_list = ["./nsgaiii_two_second_new_25.pth",
+            #                      "./nsgaiii_two_second_new_50.pth",
+            #                      "./nsgaiii_two_second_new_75.pth"]
+            # if range_id == 2:
+            #     tmp_path = "./nsgaiii_two_third_new_100.pth"
+            #     tmp_path_list = ["./nsgaiii_two_third_new_25.pth",
+            #                      "./nsgaiii_two_third_new_50.pth",
+            #                      "./nsgaiii_two_third_new_75.pth"]
+            # if range_id == 3:
+            #     tmp_path = "./nsgaiii_two_fourth_new_100.pth"
+            #     tmp_path_list = ["./nsgaiii_two_fourth_new_25.pth",
+            #                      "./nsgaiii_two_fourth_new_50.pth",
+            #                      "./nsgaiii_two_fourth_new_75.pth"]
+
             tmp_result = torch.load(tmp_path)
             for cur_path in tmp_path_list:
                 result_multi.append(torch.load(cur_path))
@@ -187,7 +217,7 @@ for range_id, test_id in enumerate(problem_id):
             for _ in range(3):
                 igd_multi.append([torch.zeros(n_iter, 1) for _ in range(problem_range[range_id])])
 
-        # prepare the groud truth PF and weights for evaluation (con't)
+        # prepare the ground truth PF and weights for evaluation (con't)
         for task_id in range(problem_range[range_id]):
             if not if_hyper:
                 weight_item, front_item = problem_list[task_id].ref_and_obj()
@@ -237,7 +267,8 @@ for range_id, test_id in enumerate(problem_id):
                 # train GP surrogate model
                 surrogate_model = GaussianProcess(n_dim_list[task_id], n_obj_list[task_id], nu=5)
                 surrogate_model.fit(X_norm, Y_norm)
-            
+
+                # fetch the Z data
                 z = torch.min(torch.cat((Z_list[task_id].reshape(1, n_obj_list[task_id]),
                                          torch.from_numpy(Y_norm).to(device) - 0.1)), axis=0).values.data
                 Z_list[task_id] = z
@@ -343,7 +374,7 @@ for range_id, test_id in enumerate(problem_id):
                 for b in range(n_sample):
                     hv = HV(ref_point=np.max(np.vstack([Y_p, Y_candidate]), axis=0))
                     best_hv_value = 0
-                    best_subset = None
+                    best_subset = [0]
 
                     for k in range(len(Y_candidate)):
                         Y_subset = Y_candidate[k]
@@ -354,6 +385,8 @@ for range_id, test_id in enumerate(problem_id):
                             best_subset = [k]
 
                     print("Y_p has shape of {}.".format(Y_p.shape))
+                    print("Y_candidate_mean shape of {}.".format(Y_candidate_mean.shape))
+                    print("Y_candidate_std shape of {}.".format(Y_candidata_std.shape))
                     print("Y_candidate has shape of {}.".format(Y_candidate[best_subset].shape))
                     Y_p = np.vstack([Y_p, Y_candidate[best_subset]])
                     best_subset_list.append(best_subset)
@@ -447,8 +480,10 @@ for range_id, test_id in enumerate(problem_id):
 
     print("DEBUG")
 
-    torch.save(my_dict, "./psl_server/{}_obj{}_dim{}_{}.pth".
-               format(problem_list[0].current_name,
-                      my_dict['obj'],
-                      my_dict['dim'],
-                      "PSL-MOBO"))
+    # torch.save(my_dict, "./psl_server/{}_obj{}_dim{}_{}.pth".
+    #            format(problem_list[0].current_name,
+    #                   my_dict['obj'],
+    #                   my_dict['dim'],
+    #                   "PSL-MOBO"))
+    torch.save(my_dict, "./psl_server/Benchmark_result_P{}_{}.pth".
+               format(range_id+1, "PSL-MOBO"))
