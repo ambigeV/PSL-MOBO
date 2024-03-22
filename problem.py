@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import math
+import matplotlib.pyplot as plt
 # import the hyper-parameter tuning related packages
 from yahpo_gym import local_config, list_scenarios
 import ConfigSpace
@@ -27,7 +28,6 @@ S_cm2 = torch.tensor(read_matrix_from_file("mdata/S_CIMS_2.txt"))
 S_pm1 = torch.tensor(read_matrix_from_file("mdata/S_PIMS_1.txt"))
 S_ph2 = torch.tensor(read_matrix_from_file("mdata/S_PIHS_2.txt"))
 S_pl2 = torch.tensor(read_matrix_from_file("mdata/S_PILS_2.txt"))
-
 
 def generate_norm(source_tensor: torch.tensor):
     norm_tensor = torch.norm(source_tensor, dim=1).unsqueeze(1)
@@ -1532,6 +1532,22 @@ class P1T1():
         # Compute the q function to scale both objectives
         return 1 + self.coef * torch.sum(torch.square(x), dim=1)
 
+    def pareto_x(self, sample_size=500):
+        optimal_x = torch.ones(sample_size, self.n_dim) * 0.5
+        optimal_x[:, 0] = torch.arange(sample_size)/sample_size
+
+        return optimal_x
+
+    def pareto_y(self):
+        # Transform the pareto_x to the real variables
+        x = self.pareto_x()
+        y = self.evaluate(x)
+        y_plus = y + 0.05
+        y_sum = torch.sum(y_plus, dim=1)[:, None]
+        y_ref = y_plus / y_sum
+
+        return y, y_ref
+
     def evaluate(self, eval_x):
         # Feed in the effective size of solution vectors
         # Transform them into standard vectors with pending 0.5
@@ -1570,10 +1586,27 @@ class P1T2():
         self.ubound[1:] = self.ubound[1:] * 100
         self.nadir_point = [2886.3695604236013, 0.039999999999998245]
         self.coef = 0.01
+        # self.coef = 1
 
     def q(self, x):
         # Compute the q function to scale both objectives
         return 1 + self.coef * torch.sum(torch.abs(x), dim=1) * 9 / (self.n_dim - 1)
+
+    def pareto_x(self, sample_size=500):
+        optimal_x = torch.ones(sample_size, self.n_dim) * 0.5
+        optimal_x[:, 0] = torch.arange(sample_size)/sample_size
+
+        return optimal_x
+
+    def pareto_y(self):
+        # Transform the pareto_x to the real variables
+        x = self.pareto_x()
+        y = self.evaluate(x)
+        y_plus = y + 0.05
+        y_sum = torch.sum(y_plus, dim=1)[:, None]
+        y_ref = y_plus / y_sum
+
+        return y, y_ref
 
     def evaluate(self, eval_x):
         # Feed in the effective size of solution vectors
@@ -1617,12 +1650,29 @@ class P2T1():
         self.nadir_point = [2886.3695604236013, 0.039999999999998245]
         self.coef_1 = 0.001
         self.coef_2 = 0.01
+
     def q(self, x):
         # Compute the q function to scale both objectives
         x_plus = x[:, 1:]
         x_minus = x[:, :-1]
         return 1 + torch.sum(self.coef_1 * torch.square(torch.square(x_minus) - x_plus)
                              + self.coef_2 * torch.square(1 - x_minus), dim=1)
+
+    def pareto_x(self, sample_size=500):
+        optimal_x = torch.ones(sample_size, self.n_dim) * 0.6
+        optimal_x[:, 0] = torch.arange(sample_size)/sample_size
+
+        return optimal_x
+
+    def pareto_y(self):
+        # Transform the pareto_x to the real variables
+        x = self.pareto_x()
+        y = self.evaluate(x)
+        y_plus = y + 0.05
+        y_sum = torch.sum(y_plus, dim=1)[:, None]
+        y_ref = y_plus / y_sum
+
+        return y, y_ref
 
     def evaluate(self, eval_x):
         # Feed in the effective size of solution vectors
@@ -1662,6 +1712,28 @@ class P2T2():
         self.ubound[1:] = self.ubound[1:] * 5
         self.nadir_point = [2886.3695604236013, 0.039999999999998245]
         self.coef = 0.01
+
+    def pareto_x(self, sample_size=500):
+        optimal_x = torch.ones(sample_size, self.n_dim) * 0.6
+        optimal_x[:, 0] = torch.arange(sample_size)/sample_size
+
+        if optimal_x.device.type == 'cuda':
+            self.lbound = self.lbound.cuda()
+            self.ubound = self.ubound.cuda()
+
+        optimal_x[:, 1:] = (S_cm2 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
+
+        return optimal_x
+
+    def pareto_y(self):
+        # Transform the pareto_x to the real variables
+        x = self.pareto_x()
+        y = self.evaluate(x)
+        y_plus = y + 0.05
+        y_sum = torch.sum(y_plus, dim=1)[:, None]
+        y_ref = y_plus / y_sum
+
+        return y, y_ref
 
     def q(self, x):
         # Compute the q function to scale both objectives
@@ -2643,21 +2715,26 @@ if __name__ == "__main__":
     # print("M_cm2 is {} with shape {}.".format(M_cm2, M_cm2.shape))
     # print("S_cm2 is {} with shape {}.".format(S_cm2, S_cm2.shape))
 
-    problem_current = P7T2()
-    effect_dim = 10
+    problem_current = P2T2()
 
-    sample_size = 300000
-    sample_ans = torch.rand(sample_size, effect_dim)
-    # truncate the solution to the effective size version
-    # sample_ans[:, effect_dim:] = 0.5
-    # print(sample_ans)
+    solutions, _ = problem_current.pareto_y()
+    print("Solutions are in shape of {}.".format(solutions.shape))
+    plt.scatter(solutions[:, 0], solutions[:, 1], marker='x')
+    plt.show()
 
-    sample_res = problem_current.evaluate(sample_ans)
+    # effect_dim = 10
+    # sample_size = 300000
+    # sample_ans = torch.rand(sample_size, effect_dim)
+    # # truncate the solution to the effective size version
+    # # sample_ans[:, effect_dim:] = 0.5
+    # # print(sample_ans)
+    #
+    # sample_res = problem_current.evaluate(sample_ans)
 
-    sample_min = torch.min(sample_res, dim=0).values
-    sample_max = torch.max(sample_res, dim=0).values
-
-    print("sample_min is {}.".format(sample_min))
-    print("sample_max is {}.".format(sample_max))
+    # sample_min = torch.min(sample_res, dim=0).values
+    # sample_max = torch.max(sample_res, dim=0).values
+    #
+    # print("sample_min is {}.".format(sample_min))
+    # print("sample_max is {}.".format(sample_max))
     # print(problem_current.lbound)
     # print(problem_current.ubound)
