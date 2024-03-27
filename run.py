@@ -22,6 +22,8 @@ from scipy.stats import qmc
 
 from model import ParetoSetModel
 
+import matplotlib.pyplot as plt
+
 # -----------------------------------------------------------------------------
 # list of 15 test problems, which are defined in problem.py
 # ins_list = ['f1','f2','f3','f4','f5','f6',
@@ -72,13 +74,13 @@ n_sample = 1
 
 # PSL 
 # number of learning steps
-n_steps = 100
+n_steps = 50
 # number of sampled preferences per step
 n_pref_update = 1
 # coefficient of LCB
 coef_lcb = 0.5
 # number of sampled candidates on the approxiamte Pareto front
-n_candidate = 100
+n_candidate = 50
 # number of optional local search
 n_local = 0
 # device
@@ -124,6 +126,7 @@ for range_id, test_id in enumerate(problem_id):
         n_obj_list.append(n_obj)
 
     # get the temp storage vector
+    pareto_tensors_list = []
     pareto_records_list = []
     igd_records_list = []
     rmse_records_list = []
@@ -168,6 +171,7 @@ for range_id, test_id in enumerate(problem_id):
 
         # We supply the IGD_records, RMSE_records, and Pareto_records
         # To enable the computation, we prepare the font_list and weight_list
+        pareto_tensors = [[] for i in range(problem_range[range_id])]
         pareto_records = [torch.zeros(n_iter, 1) for i in range(problem_range[range_id])]
         igd_records = [torch.zeros(n_iter, 1) for i in range(problem_range[range_id])]
         rmse_records = []
@@ -182,10 +186,10 @@ for range_id, test_id in enumerate(problem_id):
 
         # prepare the ground true pareto front and weights for evaluation
         if if_hyper:
-            tmp_path = "./Benchmark_P{}_100.pth".format(range_id + 1)
-            tmp_path_list = ["./Benchmark_P{}_25.pth".format(range_id + 1),
-                             "./Benchmark_P{}_50.pth".format(range_id + 1),
-                             "./Benchmark_P{}_75.pth".format(range_id + 1)]
+            tmp_path = "./Benchmark_low_P{}_100.pth".format(range_id + 1)
+            tmp_path_list = ["./Benchmark_low_P{}_25.pth".format(range_id + 1),
+                             "./Benchmark_low_P{}_50.pth".format(range_id + 1),
+                             "./Benchmark_low_P{}_75.pth".format(range_id + 1)]
             # if range_id == 0:
             #     tmp_path = "./nsgaiii_two_first_new_100.pth"
             #     tmp_path_list = ["./nsgaiii_two_first_new_25.pth",
@@ -384,10 +388,10 @@ for range_id, test_id in enumerate(problem_id):
                             best_hv_value = hv_value_subset
                             best_subset = [k]
 
-                    print("Y_p has shape of {}.".format(Y_p.shape))
-                    print("Y_candidate_mean shape of {}.".format(Y_candidate_mean.shape))
-                    print("Y_candidate_std shape of {}.".format(Y_candidata_std.shape))
-                    print("Y_candidate has shape of {}.".format(Y_candidate[best_subset].shape))
+                    # print("Y_p has shape of {}.".format(Y_p.shape))
+                    # print("Y_candidate_mean shape of {}.".format(Y_candidate_mean.shape))
+                    # print("Y_candidate_std shape of {}.".format(Y_candidata_std.shape))
+                    # print("Y_candidate has shape of {}.".format(Y_candidate[best_subset].shape))
                     Y_p = np.vstack([Y_p, Y_candidate[best_subset]])
                     best_subset_list.append(best_subset)
 
@@ -405,17 +409,34 @@ for range_id, test_id in enumerate(problem_id):
                 X = np.vstack([X, X_new.detach().cpu().numpy()])
                 Y = np.vstack([Y, Y_new.detach().cpu().numpy()])
 
+                # Re-do the non-dominated sorting
+                nds = NonDominatedSorting()
+                idx_nds = nds.do(Y)
+
+                X_nds = X[idx_nds[0]]
+                Y_nds = Y[idx_nds[0]]
+
                 # update the X set and Y set to the whole set
                 X_list[task_id] = X
                 Y_list[task_id] = Y
 
+
                 # update the stats vector for supervision
                 # update pareto set size
                 pareto_records[task_id][i_iter, :] = X_nds.shape[0]
+                pareto_tensors[task_id].append(Y_nds)
                 # update igd value
-                igd_records[task_id][i_iter] = igd(front_list[task_id], torch.from_numpy(Y))
+                igd_records[task_id][i_iter] = igd(front_list[task_id], torch.from_numpy(Y_nds))
+                # DEBUG: Check the pareto frontier distribution so that the IGD data is correct
+                # plt.scatter(Y_nds[:, 0], Y_nds[:, 1], alpha=0.4, label="PSL-MOBO")
+                # plt.scatter(Y_list[task_id][:, 0], Y_list[task_id][:, 1], alpha=0.4, label="PSL-MOBO"s)
+                # plt.scatter(front_list[task_id][:, 0], front_list[task_id][:, 1], alpha=0.02, label="NSGA-III")
+                # plt.legend()
+                # plt.title("Task {} in iteration {}.".format(task_id + 1, i_iter + 1))
+                # plt.show()
+
                 for igd_id, igd_record_item in enumerate(igd_multi):
-                    igd_multi[igd_id][task_id][i_iter] = igd(front_multi[igd_id][task_id], torch.from_numpy(Y))
+                    igd_multi[igd_id][task_id][i_iter] = igd(front_multi[igd_id][task_id], torch.from_numpy(Y_nds))
                 # print("DEBUG")
                 # update rmse value
                 if i_iter in rmse_list:
@@ -455,6 +476,7 @@ for range_id, test_id in enumerate(problem_id):
         print("*********The end of run id {}***********".format(run_iter))
         # At the end of each run
         pareto_records_list.append(pareto_records)
+        pareto_tensors_list.append(pareto_tensors)
 
         if not if_hyper:
             igd_records_list.append(igd_records)
@@ -471,6 +493,7 @@ for range_id, test_id in enumerate(problem_id):
 
     # record the whole path file ready for analysis
     my_dict = dict()
+    my_dict['record'] = pareto_tensors_list
     my_dict['pareto'] = pareto_records_list
     my_dict['igd'] = igd_records_list
     my_dict['rmse'] = rmse_records_list
@@ -485,5 +508,5 @@ for range_id, test_id in enumerate(problem_id):
     #                   my_dict['obj'],
     #                   my_dict['dim'],
     #                   "PSL-MOBO"))
-    torch.save(my_dict, "./psl_server/Benchmark_result_P{}_{}.pth".
+    torch.save(my_dict, "./inv_server/Benchmark_low_result_P{}_{}.pth".
                format(range_id+1, "PSL-MOBO"))

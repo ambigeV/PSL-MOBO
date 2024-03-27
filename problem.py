@@ -140,6 +140,9 @@ def get_problem(name, *args, **kwargs):
         'method2_2': hyper(task_num=2, task_id=1, if_methods=True, problem_two_inner_id=1),
         'method3_1': hyper(task_num=2, task_id=0, if_methods=True, problem_two_inner_id=2),
         'method3_2': hyper(task_num=2, task_id=1, if_methods=True, problem_two_inner_id=2),
+        'fidelity_1': hyper(task_id=2, if_fidelity=True, fidelity=1.0),
+        'fidelity_2': hyper(task_id=2, if_fidelity=True, fidelity=0.75),
+        'fidelity_3': hyper(task_id=2, if_fidelity=True, fidelity=0.50),
         're21_t1': RE21(),
         're21_t2': RE21(F=10, sigma=8, L=200, E=1.8e5),
         're21_t3': RE21(F=8, sigma=5, L=200, E=1.5e5),
@@ -173,11 +176,12 @@ def get_problem(name, *args, **kwargs):
 
 class hyper:
     def __init__(self, task_num=3, task_id=0, instance="iaml_xgboost",
-                 if_methods: bool = False, problem_two_inner_id: int = 0):
+                 if_methods: bool = False, problem_two_inner_id: int = 0,
+                 if_fidelity: bool = False, fidelity: float = None):
         local_config.init_config()
         local_config.set_data_path("yahpo_data")
 
-        print("Start Preparing Configure Space")
+        # print("Start Preparing Configure Space")
         # b is an instantiated benchmark called "lcbench" with multiple instances
         b = BenchmarkSet(scenario=instance)
         # Can set up a task_num parameter to control the multi-task scale
@@ -189,6 +193,8 @@ class hyper:
             # b_temp.set_instance(b_temp.instances[i])
             if if_methods:
                 b_temp.set_instance(b_temp.instances[problem_two_inner_id])
+            elif if_fidelity:
+                b_temp.set_instance(b_temp.instances[2])
             else:
                 b_temp.set_instance(b_temp.instances[i])
             b_list.append(b_temp)
@@ -203,14 +209,14 @@ class hyper:
         if instance == "iaml_xgboost":
             info_list = info_list[2:-1]
             # info_list = info_list[2:-2]
-            # print("Before: {}.".format(info_list))
+            # # print("Before: {}.".format(info_list))
             # info_list.remove("rate_drop")
-            # print("After: {}.".format(info_list))
+            # # print("After: {}.".format(info_list))
         elif instance == "iaml_ranger":
             info_list = info_list[4:-1]
         else:
             info_list = info_list[1:]
-        print("Start Leaving Configure Space")
+        # print("Start Leaving Configure Space")
 
         hyper_info = dict()
         hyper_info["info_xs"] = info_xs
@@ -239,6 +245,8 @@ class hyper:
         self.hyper_info = hyper_info
         self.task_id = task_id
         self.if_methods = if_methods
+        self.if_fidelity = if_fidelity
+        self.fidelity = fidelity
         self.problem_two_inner_id = problem_two_inner_id
 
         if instance == "iaml_xgboost":
@@ -267,6 +275,11 @@ class hyper:
             tmp_id = self.problem_two_inner_id
             solution[:, :obj_num] = (solution[:, :obj_num] - self.lower_bounds[:, tmp_id]) / \
                                     (self.upper_bounds[:, tmp_id] - self.lower_bounds[:, tmp_id])
+        elif self.if_fidelity:
+            tmp_id = 2
+            solution[:, :obj_num] = (solution[:, :obj_num] - self.lower_bounds[:, tmp_id]) / \
+                                    (self.upper_bounds[:, tmp_id] - self.lower_bounds[:, tmp_id])
+
         else:
             solution[:, :obj_num] = (solution[:, :obj_num] - self.lower_bounds[:, task_id]) / \
                                     (self.upper_bounds[:, task_id] - self.lower_bounds[:, task_id])
@@ -343,7 +356,8 @@ class hyper:
 
         if isinstance(params, torch.Tensor):
             params = params.cpu()
-        params = params.numpy()
+        if not isinstance(params, np.ndarray):
+            params = params.numpy()
 
         if len(params.shape) == 1:
             batch_size = 1
@@ -361,8 +375,8 @@ class hyper:
         if batch_size == 1:
             # print(xs)
             if self.current_name == "hp":
-                xs["booster"] = "gbtree"
-                # xs["booster"] = "dart"
+                # xs["booster"] = "gbtree"
+                xs["booster"] = "dart"
             if self.current_name == "hp_ranger":
                 xs["splitrule"] = 'extratrees'
                 xs["replace"] = 'TRUE'
@@ -374,7 +388,10 @@ class hyper:
             if self.if_methods and self.task_id == 1:
                 xs["booster"] = "dart"
 
-            xs["trainsize"] = 1.0
+            if self.if_fidelity:
+                xs["trainsize"] = self.fidelity
+            else:
+                xs["trainsize"] = 1.0
 
             # Assign the params
             for i, attr_item in enumerate(info_list):
@@ -411,8 +428,8 @@ class hyper:
         else:
             for cur_id, cur_sample in enumerate(xs):
                 if self.current_name == "hp":
-                    xs[cur_id]["booster"] = "gbtree"
-                    # xs[cur_id]["booster"] = "dart"
+                    # xs[cur_id]["booster"] = "gbtree"
+                    xs[cur_id]["booster"] = "dart"
                 if self.current_name == "hp_ranger":
                     xs[cur_id]["splitrule"] = 'extratrees'
                     xs[cur_id]["replace"] = 'TRUE'
@@ -425,7 +442,10 @@ class hyper:
                 if self.if_methods and self.task_id == 1:
                     xs[cur_id]["booster"] = "dart"
 
-                xs[cur_id]["trainsize"] = 1.0
+                if self.if_fidelity:
+                    xs[cur_id]["trainsize"] = self.fidelity
+                else:
+                    xs[cur_id]["trainsize"] = 1.0
 
                 # Assign the params
                 for i, attr_item in enumerate(info_list):
