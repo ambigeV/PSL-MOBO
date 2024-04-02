@@ -52,17 +52,35 @@ import matplotlib.pyplot as plt
 # ins_list = ['re21_t1', 're21_t2', 're21_t3',
 #             're24_t1', 're24_t2', 're24_t3',
 #             're25_t1', 're25_t2', 're25_t3']
-ins_list = ['p1t1', 'p2t2',
-            'p2t1', 'p2t2',
-            'p3t1', 'p2t2',
-            'p4t1', 'p2t2',
-            'p5t1', 'p2t2',
-            'p6t1', 'p2t2',
-            'p7t1', 'p2t2']
+# ins_list = ['p1t1', 'p2t2',
+#             'p2t1', 'p2t2',
+#             'p3t1', 'p2t2',
+#             'p4t1', 'p2t2',
+#             'p5t1', 'p2t2',
+#             'p6t1', 'p2t2',
+#             'p7t1', 'p2t2']
+problem_name_dict = {0: ['mdtlz1_4_1', 'mdtlz1_4_2', 'mdtlz1_4_3', 'mdtlz1_4_4'],
+                     1: ['mdtlz2_4_1', 'mdtlz2_4_2', 'mdtlz2_4_3', 'mdtlz2_4_4'],
+                     2: ['mdtlz3_4_1', 'mdtlz3_4_2', 'mdtlz3_4_3', 'mdtlz3_4_4'],
+                     3: ["P1T1", "P1T2"],
+                     4: ["P2T1", "P2T2"],
+                     5: ["P3T1", "P3T2"],
+                     6: ["P4T1", "P4T2"],
+                     7: ["P5T1", "P5T2"],
+                     8: ["P6T1", "P6T2"],
+                     9: ["P7T1", "P7T2"],
+                     10: ['hyper1', 'hyper2', 'hyper3'],
+                     11: ['hyper1_dart', 'hyper2_dart', 'hyper3_dart'],
+                     # 12: ['method1_1', 'method1_2'],
+                     12: ['method2_1', 'method2_2'],
+                     13: ['method3_1', 'method3_2'],
+                     14: ['fidelity_1', 'fidelity_2', 'fidelity_3'],
+                     15: ['fidelity_1_dart', 'fidelity_2_dart', 'fidelity_3_dart']}
+
 
 # time slot to store rmse results
 # rmse_list = [25, 50, 75, 99]
-rmse_list = [150, 200, 250, 299]
+# rmse_list = [150, 200, 250, 299]
 
 # number of independent runs
 n_run = 10 #20
@@ -94,18 +112,33 @@ hv_list = {}
 
 # problem_id = [0, 4, 8]
 # problem_id = [0, 2, 4, 6]
-problem_id = [0, 2, 4, 6, 8, 10, 12]
-problem_range = [2, 2, 2, 2, 2, 2, 2]
+# problem_id = [0, 2, 4, 6, 8, 10, 12]
+# problem_range = [2, 2, 2, 2, 2, 2, 2]
 # problem_range = [4, 4, 4]
 # problem_range = [2, 2, 2, 2]
 # problem_id = [0, 3, 6]
 # problem_range = [3, 3, 3]
 # problem_range = [2, 2, 2]
 
-for range_id, test_id in enumerate(problem_id):
-    # if range_id < 3:
-    #     continue
-    print("Start with {}.".format(ins_list[test_id]))
+for range_id in enumerate(problem_name_dict):
+
+    rmse_list = np.arange(n_iter / 4, n_iter + 1, n_iter / 4) - 1
+    if_DTLZ = False
+    if_bench = False
+    if_hyper = False
+
+    if range_id in list(np.arange(0, 3)):
+        if_DTLZ = True
+    elif range_id in list(np.arange(3, 10)):
+        if_bench = True
+    elif range_id in list(np.arange(10, 16)):
+        if_hyper = True
+    else:
+        assert range_id in list(np.arange(0, 16))
+
+    problem_name_list = problem_name_dict[range_id]
+    problem_size = len(problem_name_list)
+    print("Start with {}.".format(problem_name_list[0]))
     
     # get problem info
     # We only use hv records for debugging
@@ -114,12 +147,13 @@ for range_id, test_id in enumerate(problem_id):
     problem_list = []
     n_dim_list = []
     n_obj_list = []
-    for temp_id in range(problem_range[range_id]):
-        problem = get_problem(ins_list[test_id+temp_id])
+    for temp_id in range(problem_size):
+        problem = get_problem(problem_name_list[temp_id])
         # print("DEBUG")
-        # n_dim = problem.n_dim
-        n_dim = 10
+        n_dim = problem.n_dim
         n_obj = problem.n_obj
+        if if_bench:
+            n_dim = 10
 
         problem_list.append(problem)
         n_dim_list.append(n_dim)
@@ -171,74 +205,57 @@ for range_id, test_id in enumerate(problem_id):
 
         # We supply the IGD_records, RMSE_records, and Pareto_records
         # To enable the computation, we prepare the font_list and weight_list
-        pareto_tensors = [[] for i in range(problem_range[range_id])]
-        pareto_records = [torch.zeros(n_iter, 1) for i in range(problem_range[range_id])]
-        igd_records = [torch.zeros(n_iter, 1) for i in range(problem_range[range_id])]
+        pareto_tensors = [[] for i in range(problem_size)]
+        pareto_records = [torch.zeros(n_iter, 1) for i in range(problem_size)]
+        igd_records = [torch.zeros(n_iter, 1) for i in range(problem_size)]
         rmse_records = []
         front_list = []
         weight_list = []
 
         # only specialized in the if_hyper settings
-        result_multi = []
-        rmse_multi = [[], [], []]
-        front_multi = [[], [], []]
-        weight_multi = [[], [], []]
+        # result_multi = []
+        # rmse_multi = [[], [], []]
+        # front_multi = [[], [], []]
+        # weight_multi = [[], [], []]
 
         # prepare the ground true pareto front and weights for evaluation
+        true_result = None
+        tmp_path = None
         if if_hyper:
-            tmp_path = "./Benchmark_low_P{}_100.pth".format(range_id + 1)
-            tmp_path_list = ["./Benchmark_low_P{}_25.pth".format(range_id + 1),
-                             "./Benchmark_low_P{}_50.pth".format(range_id + 1),
-                             "./Benchmark_low_P{}_75.pth".format(range_id + 1)]
-            # if range_id == 0:
-            #     tmp_path = "./nsgaiii_two_first_new_100.pth"
-            #     tmp_path_list = ["./nsgaiii_two_first_new_25.pth",
-            #                      "./nsgaiii_two_first_new_50.pth",
-            #                      "./nsgaiii_two_first_new_75.pth"]
-            # if range_id == 1:
-            #     tmp_path = "./nsgaiii_two_second_new_100.pth"
-            #     tmp_path_list = ["./nsgaiii_two_second_new_25.pth",
-            #                      "./nsgaiii_two_second_new_50.pth",
-            #                      "./nsgaiii_two_second_new_75.pth"]
-            # if range_id == 2:
-            #     tmp_path = "./nsgaiii_two_third_new_100.pth"
-            #     tmp_path_list = ["./nsgaiii_two_third_new_25.pth",
-            #                      "./nsgaiii_two_third_new_50.pth",
-            #                      "./nsgaiii_two_third_new_75.pth"]
-            # if range_id == 3:
-            #     tmp_path = "./nsgaiii_two_fourth_new_100.pth"
-            #     tmp_path_list = ["./nsgaiii_two_fourth_new_25.pth",
-            #                      "./nsgaiii_two_fourth_new_50.pth",
-            #                      "./nsgaiii_two_fourth_new_75.pth"]
-
-            tmp_result = torch.load(tmp_path)
-            for cur_path in tmp_path_list:
-                result_multi.append(torch.load(cur_path))
-
-        # igd_multi vector serves as multi-fidelity evaluations (25/50/75 nsga)
-        igd_multi = []
-        if if_hyper:
-            for _ in range(3):
-                igd_multi.append([torch.zeros(n_iter, 1) for _ in range(problem_range[range_id])])
+            if problem_list[0].name == 'hyper1':
+                tmp_path = "truth/nsgaiii_xgboost_100_pymoo_max.pth"
+            elif problem_list[0].name == 'hyper1_dart':
+                tmp_path = "truth/nsgaiii_xgboost_dart_100_pymoo_max.pth"
+            elif problem_list[0].name == 'method2_1':
+                tmp_path = "truth/nsgaiii_two_second_new_100_pymoo_max.pth"
+            elif problem_list[0].name == 'method3_1':
+                tmp_path = "truth/nsgaiii_two_third_new_100_pymoo_max.pth"
+            elif problem_list[0].name == 'fidelity_1':
+                tmp_path = "truth/nsgaiii_singel_xgboost_100_pymoo_max.pth"
+            elif problem_list[0].name == 'fidelity_1_dart':
+                tmp_path = "truth/nsgaiii_singel_xgboost_dart_100_pymoo.pth"
+            else:
+                # print("my problem_list[0] is {}".format(problem_list))
+                assert problem_list[0].name in ['hyper1', 'hyper1_dart',
+                                                'method2_1', 'method3_1',
+                                                'fidelity_1', 'fidelity_1_dart']
+            true_result = torch.load(tmp_path)
 
         # prepare the ground truth PF and weights for evaluation (con't)
-        for task_id in range(problem_range[range_id]):
-            if not if_hyper:
+        for task_id in range(problem_size):
+            front_item = None
+            weight_item = None
+            if if_DTLZ:
                 weight_item, front_item = problem_list[task_id].ref_and_obj()
-                front_list.append(front_item)
-                weight_list.append(weight_item)
             if if_hyper:
                 # main result storage
-                weight_item = tmp_result["weight"][task_id]
-                front_item = tmp_result["front"][task_id][:, :problem_list[task_id].n_obj]
-                front_list.append(front_item)
-                weight_list.append(weight_item)
-                # side result storage
-                for result_id, result_item in enumerate(result_multi):
-                    front_multi[result_id].append(result_item["front"][task_id][:, :problem_list[task_id].n_obj])
-                    weight_multi[result_id].append(result_item["weight"][task_id])
+                weight_item = true_result["weight"][task_id].float()
+                front_item = true_result["front"][task_id][:, :problem_list[task_id].n_obj].float()
+            if if_bench:
+                front_item, weight_item = problem_list[task_id].pareto_y()
+            front_list.append(front_item)
+            weight_list.append(weight_item)
 
-        # print("DEBUG init")
         psmodel_list = []
         optimizer_list = []
         train_input_list = []
@@ -248,12 +265,11 @@ for range_id, test_id in enumerate(problem_id):
             print("Start of iteration {}.".format(i_iter))
             # record the start time for each iteration
             time_s_iter = time.time()
-            for task_id in range(problem_range[range_id]):
+            for task_id in range(problem_size):
 
                 # intitialize the model and optimizer
                 psmodel = ParetoSetModel(n_dim_list[task_id], n_obj_list[task_id])
                 psmodel.to(device)
-                # psmodel_list.append(psmodel)
 
                 # optimizer
                 optimizer = torch.optim.Adam(psmodel.parameters(), lr=1e-3)
@@ -388,10 +404,6 @@ for range_id, test_id in enumerate(problem_id):
                             best_hv_value = hv_value_subset
                             best_subset = [k]
 
-                    # print("Y_p has shape of {}.".format(Y_p.shape))
-                    # print("Y_candidate_mean shape of {}.".format(Y_candidate_mean.shape))
-                    # print("Y_candidate_std shape of {}.".format(Y_candidata_std.shape))
-                    # print("Y_candidate has shape of {}.".format(Y_candidate[best_subset].shape))
                     Y_p = np.vstack([Y_p, Y_candidate[best_subset]])
                     best_subset_list.append(best_subset)
 
@@ -420,7 +432,6 @@ for range_id, test_id in enumerate(problem_id):
                 X_list[task_id] = X
                 Y_list[task_id] = Y
 
-
                 # update the stats vector for supervision
                 # update pareto set size
                 pareto_records[task_id][i_iter, :] = X_nds.shape[0]
@@ -435,9 +446,6 @@ for range_id, test_id in enumerate(problem_id):
                 # plt.title("Task {} in iteration {}.".format(task_id + 1, i_iter + 1))
                 # plt.show()
 
-                for igd_id, igd_record_item in enumerate(igd_multi):
-                    igd_multi[igd_id][task_id][i_iter] = igd(front_multi[igd_id][task_id], torch.from_numpy(Y_nds))
-                # print("DEBUG")
                 # update rmse value
                 if i_iter in rmse_list:
                     # w --> x
@@ -448,18 +456,6 @@ for range_id, test_id in enumerate(problem_id):
                     current_result = problem_list[task_id].evaluate(predict_x)
                     current_rmse, _ = rmse(front_list[task_id].to(device), current_result.to(device))
                     rmse_records.append(current_rmse)
-
-                    if if_hyper:
-                        for rmse_id, rmse_item in enumerate(rmse_multi):
-                            # w --> x
-                            predict_x_multi = psmodel(weight_multi[rmse_id][task_id].to(device)).\
-                                to(torch.float64).to(device).detach()
-
-                            # x --> y
-                            current_result_multi = problem_list[task_id].evaluate(predict_x_multi)
-                            current_rmse_multi, _ = rmse(front_multi[rmse_id][task_id].to(device),
-                                                         current_result_multi.to(device))
-                            rmse_multi[rmse_id].append(current_rmse_multi)
 
             # record the ending time for each iteration
             time_t_iter = time.time()
@@ -478,15 +474,8 @@ for range_id, test_id in enumerate(problem_id):
         pareto_records_list.append(pareto_records)
         pareto_tensors_list.append(pareto_tensors)
 
-        if not if_hyper:
-            igd_records_list.append(igd_records)
-        else:
-            igd_records_list.append((igd_records, igd_multi))
-
-        if not if_hyper:
-            rmse_records_list.append(rmse_records)
-        else:
-            rmse_records_list.append((rmse_records, rmse_multi))
+        igd_records_list.append(igd_records)
+        rmse_records_list.append(rmse_records)
 
         # with open('hv_psl_mobo.pickle', 'wb') as output_file:
         #     pickle.dump([hv_list], output_file)
@@ -508,5 +497,6 @@ for range_id, test_id in enumerate(problem_id):
     #                   my_dict['obj'],
     #                   my_dict['dim'],
     #                   "PSL-MOBO"))
-    torch.save(my_dict, "./inv_server/Benchmark_low_result_P{}_{}.pth".
-               format(range_id+1, "PSL-MOBO"))
+    torch.save(my_dict, "result/{}_{}_{}".format(range_id, problem_list[0].current_name, "PSL-MOB O"))
+    # torch.save(my_dict, "./result/Benchmark_low_result_P{}_{}.pth".
+    #            format(range_id+1, "PSL-MOBO"))

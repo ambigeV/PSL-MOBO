@@ -128,9 +128,12 @@ def get_problem(name, *args, **kwargs):
         'invdtlz3_4_2': invDTLZ3(m=3, n=6, s=0.75, p=0.5, p_ind=1),
         'invdtlz3_4_3': invDTLZ3(m=3, n=6, s=0.50, p=0.5, p_ind=2),
         'invdtlz3_4_4': invDTLZ3(m=3, n=6, s=0.25, p=0.5, p_ind=3),
-        'hyper1': hyper(task_id=0),
-        'hyper2': hyper(task_id=1),
-        'hyper3': hyper(task_id=2),
+        'hyper1': hyper(task_id=0, if_gbtree=True),
+        'hyper2': hyper(task_id=1, if_gbtree=True),
+        'hyper3': hyper(task_id=2, if_gbtree=True),
+        'hyper1_dart': hyper(task_id=0, if_gbtree=False),
+        'hyper2_dart': hyper(task_id=1, if_gbtree=False),
+        'hyper3_dart': hyper(task_id=2, if_gbtree=False),
         'hyper_r1': hyper(task_id=0, instance="iaml_ranger"),
         'hyper_r2': hyper(task_id=1, instance="iaml_ranger"),
         'hyper_r3': hyper(task_id=2, instance="iaml_ranger"),
@@ -140,9 +143,12 @@ def get_problem(name, *args, **kwargs):
         'method2_2': hyper(task_num=2, task_id=1, if_methods=True, problem_two_inner_id=1),
         'method3_1': hyper(task_num=2, task_id=0, if_methods=True, problem_two_inner_id=2),
         'method3_2': hyper(task_num=2, task_id=1, if_methods=True, problem_two_inner_id=2),
-        'fidelity_1': hyper(task_id=2, if_fidelity=True, fidelity=1.0),
-        'fidelity_2': hyper(task_id=2, if_fidelity=True, fidelity=0.75),
-        'fidelity_3': hyper(task_id=2, if_fidelity=True, fidelity=0.50),
+        'fidelity_1': hyper(task_id=2, if_fidelity=True, fidelity=0.50, if_gbtree=True),
+        'fidelity_2': hyper(task_id=2, if_fidelity=True, fidelity=0.50, if_gbtree=True),
+        'fidelity_3': hyper(task_id=2, if_fidelity=True, fidelity=0.50, if_gbtree=True),
+        'fidelity_1_dart': hyper(task_id=2, if_fidelity=True, fidelity=0.50, if_gbtree=False),
+        'fidelity_2_dart': hyper(task_id=2, if_fidelity=True, fidelity=0.50, if_gbtree=False),
+        'fidelity_3_dart': hyper(task_id=2, if_fidelity=True, fidelity=0.50, if_gbtree=False),
         're21_t1': RE21(),
         're21_t2': RE21(F=10, sigma=8, L=200, E=1.8e5),
         're21_t3': RE21(F=8, sigma=5, L=200, E=1.5e5),
@@ -177,7 +183,8 @@ def get_problem(name, *args, **kwargs):
 class hyper:
     def __init__(self, task_num=3, task_id=0, instance="iaml_xgboost",
                  if_methods: bool = False, problem_two_inner_id: int = 0,
-                 if_fidelity: bool = False, fidelity: float = None):
+                 if_fidelity: bool = False, fidelity: float = None,
+                 if_gbtree: bool = False):
         local_config.init_config()
         local_config.set_data_path("yahpo_data")
 
@@ -207,11 +214,14 @@ class hyper:
         info_xs = b._get_config_space()
 
         if instance == "iaml_xgboost":
-            info_list = info_list[2:-1]
-            # info_list = info_list[2:-2]
-            # # print("Before: {}.".format(info_list))
-            # info_list.remove("rate_drop")
-            # # print("After: {}.".format(info_list))
+            # info_list = info_list[2:-1]
+            if if_gbtree:
+                info_list = info_list[2:-2]
+                # print("Before: {}.".format(info_list))
+                info_list.remove("rate_drop")
+                # print("After: {}.".format(info_list))
+            else:
+                info_list = info_list[2:-1]
         elif instance == "iaml_ranger":
             info_list = info_list[4:-1]
         else:
@@ -246,6 +256,7 @@ class hyper:
         self.task_id = task_id
         self.if_methods = if_methods
         self.if_fidelity = if_fidelity
+        self.if_gbtree = if_gbtree
         self.fidelity = fidelity
         self.problem_two_inner_id = problem_two_inner_id
 
@@ -257,6 +268,23 @@ class hyper:
             self.upper_bounds = torch.tensor([[1, 1, 1], [35, 180, 180], [3.8, 1.6, 2.6]])
         self.negate_coef = torch.where(if_negate, -1, 1)
         self.negate_bias = torch.where(if_negate, 1, 0)
+
+        # Setup Name:
+        self.name = None
+        if self.if_fidelity and self.if_gbtree:
+            self.name = 'fidelity_1'
+        elif self.if_fidelity and not self.if_gbtree:
+            self.name = 'fidelity_1_dart'
+        elif self.if_methods and problem_two_inner_id == 1:
+            self.name = 'method2_1'
+        elif self.if_methods and problem_two_inner_id == 2:
+            self.name = 'method3_1'
+        elif self.if_gbtree:
+            self.name = 'hyper1'
+        elif not self.if_gbtree:
+            self.name = 'hyper1_dart'
+        else:
+            assert 1 == 2
 
     def _prepare_normalize(self, solution: torch.tensor):
         obj_num = self.n_obj
@@ -373,10 +401,11 @@ class hyper:
         set_list = self.hyper_info['b_list']
 
         if batch_size == 1:
-            # print(xs)
             if self.current_name == "hp":
-                # xs["booster"] = "gbtree"
-                xs["booster"] = "dart"
+                if self.if_gbtree:
+                    xs["booster"] = "gbtree"
+                else:
+                    xs["booster"] = "dart"
             if self.current_name == "hp_ranger":
                 xs["splitrule"] = 'extratrees'
                 xs["replace"] = 'TRUE'
@@ -424,12 +453,13 @@ class hyper:
                        'sol': params}['obj']
             final_obj = self._prepare_normalize(tmp_obj)
             return final_obj
-
         else:
             for cur_id, cur_sample in enumerate(xs):
                 if self.current_name == "hp":
-                    # xs[cur_id]["booster"] = "gbtree"
-                    xs[cur_id]["booster"] = "dart"
+                    if self.if_gbtree:
+                        xs[cur_id]["booster"] = "gbtree"
+                    else:
+                        xs[cur_id]["booster"] = "dart"
                 if self.current_name == "hp_ranger":
                     xs[cur_id]["splitrule"] = 'extratrees'
                     xs[cur_id]["replace"] = 'TRUE'
@@ -1546,7 +1576,7 @@ class P1T1():
         self.ubound = torch.ones(n_dim)
         self.ubound[1:] = self.ubound[1:] * 100
         self.nadir_point = [2886.3695604236013, 0.039999999999998245]
-        self.coef = 0.01
+        self.coef = 1
 
     def q(self, x):
         # Compute the q function to scale both objectives
@@ -1560,9 +1590,9 @@ class P1T1():
 
     def pareto_y(self):
         # Transform the pareto_x to the real variables
-        x = self.pareto_x()
+        x = self.pareto_x(2000)
         y = self.evaluate(x)
-        y_plus = y + 0.05
+        y_plus = y
         y_sum = torch.sum(y_plus, dim=1)[:, None]
         y_ref = y_plus / y_sum
 
@@ -1620,9 +1650,9 @@ class P1T2():
 
     def pareto_y(self):
         # Transform the pareto_x to the real variables
-        x = self.pareto_x()
+        x = self.pareto_x(2000)
         y = self.evaluate(x)
-        y_plus = y + 0.05
+        y_plus = y
         y_sum = torch.sum(y_plus, dim=1)[:, None]
         y_ref = y_plus / y_sum
 
@@ -1686,9 +1716,9 @@ class P2T1():
 
     def pareto_y(self):
         # Transform the pareto_x to the real variables
-        x = self.pareto_x()
+        x = self.pareto_x(2000)
         y = self.evaluate(x)
-        y_plus = y + 0.05
+        y_plus = y
         y_sum = torch.sum(y_plus, dim=1)[:, None]
         y_ref = y_plus / y_sum
 
@@ -1747,9 +1777,9 @@ class P2T2():
 
     def pareto_y(self):
         # Transform the pareto_x to the real variables
-        x = self.pareto_x()
+        x = self.pareto_x(2000)
         y = self.evaluate(x)
-        y_plus = y + 0.05
+        y_plus = y
         y_sum = torch.sum(y_plus, dim=1)[:, None]
         y_ref = y_plus / y_sum
 
@@ -1837,6 +1867,29 @@ class P3T1():
 
         return objs
 
+    def pareto_x(self, sample_size=500):
+        # optimal_x = torch.ones(sample_size, self.n_dim) * 0.6
+        optimal_x = torch.ones(sample_size, self.n_dim) * 0.5
+        optimal_x[:, 0] = torch.arange(sample_size)/sample_size
+
+        # if optimal_x.device.type == 'cuda':
+        #     self.lbound = self.lbound.cuda()
+        #     self.ubound = self.ubound.cuda()
+        #
+        # optimal_x[:, 1:] = (S_cm2 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
+
+        return optimal_x
+
+    def pareto_y(self):
+        # Transform the pareto_x to the real variables
+        x = self.pareto_x(2000)
+        y = self.evaluate(x)
+        y_plus = y
+        y_sum = torch.sum(y_plus, dim=1)[:, None]
+        y_ref = y_plus / y_sum
+
+        return y, y_ref
+
 
 class P3T2():
     def __init__(self, n_dim=50):
@@ -1888,6 +1941,29 @@ class P3T2():
 
         return objs
 
+    def pareto_x(self, sample_size=500):
+        # optimal_x = torch.ones(sample_size, self.n_dim) * 0.6
+        optimal_x = torch.ones(sample_size, self.n_dim) * 0.5
+        optimal_x[:, 0] = torch.arange(sample_size)/sample_size
+
+        # if optimal_x.device.type == 'cuda':
+        #     self.lbound = self.lbound.cuda()
+        #     self.ubound = self.ubound.cuda()
+        #
+        # optimal_x[:, 1:] = (S_cm2 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
+
+        return optimal_x
+
+    def pareto_y(self):
+        # Transform the pareto_x to the real variables
+        x = self.pareto_x(2000)
+        y = self.evaluate(x)
+        y_plus = y
+        y_sum = torch.sum(y_plus, dim=1)[:, None]
+        y_ref = y_plus / y_sum
+
+        return y, y_ref
+
 
 class P4T1():
     def __init__(self, n_dim=50):
@@ -1934,6 +2010,29 @@ class P4T1():
         objs = torch.stack([f1, f2]).T
 
         return objs
+
+    def pareto_x(self, sample_size=500):
+        # optimal_x = torch.ones(sample_size, self.n_dim) * 0.6
+        optimal_x = torch.ones(sample_size, self.n_dim) * 0.5
+        optimal_x[:, 0] = torch.arange(sample_size)/sample_size
+
+        # if optimal_x.device.type == 'cuda':
+        #     self.lbound = self.lbound.cuda()
+        #     self.ubound = self.ubound.cuda()
+        #
+        # optimal_x[:, 1:] = (S_cm2 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
+
+        return optimal_x
+
+    def pareto_y(self):
+        # Transform the pareto_x to the real variables
+        x = self.pareto_x(2000)
+        y = self.evaluate(x)
+        y_plus = y
+        y_sum = torch.sum(y_plus, dim=1)[:, None]
+        y_ref = y_plus / y_sum
+
+        return y, y_ref
 
 
 class P4T2():
@@ -1985,6 +2084,29 @@ class P4T2():
 
         return objs
 
+    def pareto_x(self, sample_size=500):
+        # optimal_x = torch.ones(sample_size, self.n_dim) * 0.6
+        optimal_x = torch.ones(sample_size, self.n_dim) * 0.5
+        optimal_x[:, 0] = torch.arange(sample_size)/sample_size
+
+        if optimal_x.device.type == 'cuda':
+            self.lbound = self.lbound.cuda()
+            self.ubound = self.ubound.cuda()
+
+        optimal_x[:, 1:] = (S_ph2 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
+
+        return optimal_x
+
+    def pareto_y(self):
+        # Transform the pareto_x to the real variables
+        x = self.pareto_x(2000)
+        y = self.evaluate(x)
+        y_plus = y
+        y_sum = torch.sum(y_plus, dim=1)[:, None]
+        y_ref = y_plus / y_sum
+
+        return y, y_ref
+
 
 class P5T1():
     def __init__(self, n_dim=50):
@@ -2033,6 +2155,29 @@ class P5T1():
         objs = torch.stack([f1, f2]).T
 
         return objs
+
+    def pareto_x(self, sample_size=500):
+        # optimal_x = torch.ones(sample_size, self.n_dim) * 0.6
+        optimal_x = torch.ones(sample_size, self.n_dim) * 0.5
+        optimal_x[:, 0] = torch.arange(sample_size)/sample_size
+
+        if optimal_x.device.type == 'cuda':
+            self.lbound = self.lbound.cuda()
+            self.ubound = self.ubound.cuda()
+
+        optimal_x[:, 1:] = (S_pm1 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
+
+        return optimal_x
+
+    def pareto_y(self):
+        # Transform the pareto_x to the real variables
+        x = self.pareto_x(2000)
+        y = self.evaluate(x)
+        y_plus = y
+        y_sum = torch.sum(y_plus, dim=1)[:, None]
+        y_ref = y_plus / y_sum
+
+        return y, y_ref
 
 
 class P5T2():
@@ -2084,6 +2229,29 @@ class P5T2():
 
         return objs
 
+    def pareto_x(self, sample_size=500):
+        # optimal_x = torch.ones(sample_size, self.n_dim) * 0.6
+        optimal_x = torch.ones(sample_size, self.n_dim) * 0
+        optimal_x[:, 0] = torch.arange(sample_size)/sample_size
+
+        # if optimal_x.device.type == 'cuda':
+        #     self.lbound = self.lbound.cuda()
+        #     self.ubound = self.ubound.cuda()
+        #
+        # optimal_x[:, 1:] = (S_cm2 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
+
+        return optimal_x
+
+    def pareto_y(self):
+        # Transform the pareto_x to the real variables
+        x = self.pareto_x(2000)
+        y = self.evaluate(x)
+        y_plus = y
+        y_sum = torch.sum(y_plus, dim=1)[:, None]
+        y_ref = y_plus / y_sum
+
+        return y, y_ref
+
 
 class P6T1():
     def __init__(self, n_dim=50):
@@ -2133,6 +2301,29 @@ class P6T1():
         objs = torch.stack([f1, f2]).T
 
         return objs
+
+    def pareto_x(self, sample_size=500):
+        # optimal_x = torch.ones(sample_size, self.n_dim) * 0.6
+        optimal_x = torch.ones(sample_size, self.n_dim) * 0.5
+        optimal_x[:, 0] = torch.arange(sample_size)/sample_size
+
+        # if optimal_x.device.type == 'cuda':
+        #     self.lbound = self.lbound.cuda()
+        #     self.ubound = self.ubound.cuda()
+        #
+        # optimal_x[:, 1:] = (S_cm2 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
+
+        return optimal_x
+
+    def pareto_y(self):
+        # Transform the pareto_x to the real variables
+        x = self.pareto_x(2000)
+        y = self.evaluate(x)
+        y_plus = y
+        y_sum = torch.sum(y_plus, dim=1)[:, None]
+        y_ref = y_plus / y_sum
+
+        return y, y_ref
 
 
 class P6T2():
@@ -2185,6 +2376,29 @@ class P6T2():
         objs = torch.stack([f1, f2]).T
 
         return objs
+
+    def pareto_x(self, sample_size=500):
+        # optimal_x = torch.ones(sample_size, self.n_dim) * 0.6
+        optimal_x = torch.ones(sample_size, self.n_dim) * 0.5
+        optimal_x[:, 0] = torch.arange(sample_size)/sample_size
+
+        if optimal_x.device.type == 'cuda':
+            self.lbound = self.lbound.cuda()
+            self.ubound = self.ubound.cuda()
+
+        optimal_x[:, 1:] = (S_pl2 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
+
+        return optimal_x
+
+    def pareto_y(self):
+        # Transform the pareto_x to the real variables
+        x = self.pareto_x(2000)
+        y = self.evaluate(x)
+        y_plus = y
+        y_sum = torch.sum(y_plus, dim=1)[:, None]
+        y_ref = y_plus / y_sum
+
+        return y, y_ref
 
 
 class P7T1():
@@ -2240,6 +2454,30 @@ class P7T1():
 
         return objs
 
+    def pareto_x(self, sample_size=500):
+        # optimal_x = torch.ones(sample_size, self.n_dim) * 0.6
+        optimal_x = torch.ones(sample_size, self.n_dim) * 0.5
+        optimal_x[:, 0] = torch.arange(sample_size)/sample_size
+
+        if optimal_x.device.type == 'cuda':
+            self.lbound = self.lbound.cuda()
+            self.ubound = self.ubound.cuda()
+
+        optimal_x[:, 1:] = (1 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
+        # optimal_x[:, 1:] = (S_cm2 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
+
+        return optimal_x
+
+    def pareto_y(self):
+        # Transform the pareto_x to the real variables
+        x = self.pareto_x(2000)
+        y = self.evaluate(x)
+        y_plus = y
+        y_sum = torch.sum(y_plus, dim=1)[:, None]
+        y_ref = y_plus / y_sum
+
+        return y, y_ref
+
 
 class P7T2():
     def __init__(self, n_dim=50):
@@ -2287,6 +2525,30 @@ class P7T2():
         objs = torch.stack([f1, f2]).T
 
         return objs
+
+    def pareto_x(self, sample_size=500):
+        # optimal_x = torch.ones(sample_size, self.n_dim) * 0.6
+        optimal_x = torch.ones(sample_size, self.n_dim) * 0.5
+        optimal_x[:, 0] = torch.arange(sample_size)/sample_size
+
+        # if optimal_x.device.type == 'cuda':
+        #     self.lbound = self.lbound.cuda()
+        #     self.ubound = self.ubound.cuda()
+        #
+        # optimal_x[:, 1:] = (1 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
+        # optimal_x[:, 1:] = (S_cm2 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
+
+        return optimal_x
+
+    def pareto_y(self):
+        # Transform the pareto_x to the real variables
+        x = self.pareto_x(2000)
+        y = self.evaluate(x)
+        y_plus = y
+        y_sum = torch.sum(y_plus, dim=1)[:, None]
+        y_ref = y_plus / y_sum
+
+        return y, y_ref
 
 
 class P8T1():
