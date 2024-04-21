@@ -1,5 +1,7 @@
 import torch
 import numpy as np
+# import tdc
+# from smiles_config import *
 import math
 import matplotlib.pyplot as plt
 # import the hyper-parameter tuning related packages
@@ -19,15 +21,6 @@ def read_matrix_from_file(filename):
             matrix.append(row)
     return matrix
 
-
-M_cm2 = torch.tensor(read_matrix_from_file("mdata/M_CIMS_2.txt"))
-M_pm1 = torch.tensor(read_matrix_from_file("mdata/M_PIMS_1.txt"))
-M_pm2 = torch.tensor(read_matrix_from_file("mdata/M_PIMS_2.txt"))
-M_nm2 = torch.tensor(read_matrix_from_file("mdata/M_NIMS_2.txt"))
-S_cm2 = torch.tensor(read_matrix_from_file("mdata/S_CIMS_2.txt"))
-S_pm1 = torch.tensor(read_matrix_from_file("mdata/S_PIMS_1.txt"))
-S_ph2 = torch.tensor(read_matrix_from_file("mdata/S_PIHS_2.txt"))
-S_pl2 = torch.tensor(read_matrix_from_file("mdata/S_PILS_2.txt"))
 
 def generate_norm(source_tensor: torch.tensor):
     norm_tensor = torch.norm(source_tensor, dim=1).unsqueeze(1)
@@ -178,6 +171,87 @@ def get_problem(name, *args, **kwargs):
         raise Exception("Problem not found.")
 
     return PROBLEM[name]
+
+
+# class Oracle:
+#     def __init__(self, name=None):
+#         self.max_len = 255
+#         self.qed_scorer = tdc.Oracle(name='qed')
+#         self.sa_scorer = tdc.Oracle(name='SA')
+#         if name is not None:
+#             self.scorer = tdc.Oracle(name=name)
+#             self.n_obj = 3
+#         else:
+#             self.scorer = None
+#             self.n_obj = 2
+#
+#     def _transform_params(self, params):
+#         # The input params in this case should a real-value vector
+#         # We expect to transform the params into smiles or other representations
+#         if isinstance(params, torch.Tensor):
+#             params = params.cpu().numpy()
+#         if not isinstance(params, np.ndarray):
+#             params = params.numpy()
+#
+#         if len(params.shape) == 1:
+#             batch_size = 1
+#         else:
+#             batch_size = params.shape[0]
+#
+#         # The continuous vector should be converted into combinatorial first
+#         params = np.floor(params * self.max_len).astype(np.uint16)
+#
+#         # Convert to list
+#         params = params.tolist()
+#
+#         # The combinatorial vector should be attached with corresponding
+#         # SMILES or other representation
+#         # The obtained vectors in class of numpy.ndarray
+#         return params, batch_size
+#
+#     def evaluate(self, params):
+#         raise NotImplementedError
+
+
+# class OracleSmiles(Oracle):
+#
+#     def __init__(self, name=None):
+#         super().__init__(self, name=None)
+#         if name is not None:
+#             self.current_name = f"smiles_{name}"
+#         else:
+#             self.current_name = "smiles"
+#
+#     def transform_smiles(self, params):
+#
+#         params, batch_size = self._transform_params(params)
+#         # The output param, params, is a list or list of lists.
+#         if batch_size == 1:
+#             smiles = canonicalize(decode(gene_to_cfg(params)))
+#         else:
+#             smiles = []
+#             for param in params:
+#                 smiles.append(canonicalize(decode(gene_to_cfg(param))))
+#
+#         # Convert each list
+#         return smiles, batch_size
+#
+#     def evaluate_from_smiles(self, smiles):
+#         if self.n_obj == 2:
+#             f1 = 1 - self.qed_scorer(smiles)
+#             f2 = (10 - self.sa_scorer(smiles)) / (10 - 1)
+#             obj = torch.stack([torch.Tensor(f1), torch.Tensor(f2)]).T
+#
+#         if self.n_obj == 3:
+#             f1 = 1 - self.qed_scorer(smiles)
+#             f2 = (10 - self.sa_scorer(smiles)) / (10 - 1)
+#             f3 = 1 - self.scorer(smiles)
+#             obj = torch.stack([torch.Tensor(f1), torch.Tensor(f2)]).T
+#
+#         return obj
+#
+#     def evaluate(self, params):
+#         return self._transform
 
 
 class hyper:
@@ -702,7 +776,7 @@ class invDTLZ1:
 
         g_result_inter = torch.sum(g_result_1 - g_result_2, dim=1).unsqueeze(1)
         g_result = g_a * (self.k + g_result_inter)
-        return - g_result
+        return g_result
 
     def h(self, x_I: torch.tensor):
         """
@@ -1565,8 +1639,21 @@ class DTLZ2():
         return objs
 
 
-class P1T1():
+class PT:
+    def __init__(self, n_dim=None):
+        self.M_cm2 = torch.tensor(read_matrix_from_file("./mdata/M_CIMS_2.txt"))
+        self.M_pm1 = torch.tensor(read_matrix_from_file("./mdata/M_PIMS_1.txt"))
+        self.M_pm2 = torch.tensor(read_matrix_from_file("./mdata/M_PIMS_2.txt"))
+        self.M_nm2 = torch.tensor(read_matrix_from_file("./mdata/M_NIMS_2.txt"))
+        self.S_cm2 = torch.tensor(read_matrix_from_file("./mdata/S_CIMS_2.txt"))
+        self.S_pm1 = torch.tensor(read_matrix_from_file("./mdata/S_PIMS_1.txt"))
+        self.S_ph2 = torch.tensor(read_matrix_from_file("./mdata/S_PIHS_2.txt"))
+        self.S_pl2 = torch.tensor(read_matrix_from_file("./mdata/S_PILS_2.txt"))
+
+
+class P1T1(PT):
     def __init__(self, n_dim=50):
+        super().__init__(self)
         self.current_name = "P1T1"
         self.n_dim = n_dim
         self.n_obj = 2
@@ -1611,8 +1698,11 @@ class P1T1():
 
         x = x * (self.ubound - self.lbound) + self.lbound
 
-        f1_max = 6e2
-        f2_max = 6e2
+        # f1_max = 6e4
+        # f2_max = 6e4
+        f1_max = 1
+        f2_max = 1
+
 
         f1 = self.q(x[:, 1:]) * torch.cos(torch.pi * x[:, 0] / 2)
         f1 = f1 / f1_max
@@ -1624,8 +1714,9 @@ class P1T1():
         return objs
 
 
-class P1T2():
+class P1T2(PT):
     def __init__(self, n_dim=50):
+        super().__init__(self)
         self.current_name = "P1T2"
         self.n_dim = n_dim
         self.n_obj = 2
@@ -1635,7 +1726,7 @@ class P1T2():
         self.ubound = torch.ones(n_dim)
         self.ubound[1:] = self.ubound[1:] * 100
         self.nadir_point = [2886.3695604236013, 0.039999999999998245]
-        self.coef = 0.01
+        self.coef = 1
         # self.coef = 1
 
     def q(self, x):
@@ -1672,7 +1763,7 @@ class P1T2():
         x = x * (self.ubound - self.lbound) + self.lbound
 
         f1_max = 1
-        f2_max = 2.5
+        f2_max = 1
 
         f1 = x[:, 0]
         # f1 = self.q(x[:, 1:]) * torch.cos(torch.pi * x[:, 0] / 2)
@@ -1687,8 +1778,9 @@ class P1T2():
         return objs
 
 
-class P2T1():
+class P2T1(PT):
     def __init__(self, n_dim=10):
+        super().__init__(self)
         self.current_name = "P2T1"
         self.n_dim = n_dim
         self.n_obj = 2
@@ -1698,8 +1790,8 @@ class P2T1():
         self.ubound = torch.ones(n_dim)
         self.ubound[1:] = self.ubound[1:] * 5
         self.nadir_point = [2886.3695604236013, 0.039999999999998245]
-        self.coef_1 = 0.001
-        self.coef_2 = 0.01
+        self.coef_1 = 1
+        self.coef_2 = 1
 
     def q(self, x):
         # Compute the q function to scale both objectives
@@ -1738,7 +1830,8 @@ class P2T1():
         x = x * (self.ubound - self.lbound) + self.lbound
 
         f1_max = 1
-        f2_max = 8
+        # f2_max = 8
+        f2_max = 1
 
         f1 = x[:, 0]
         f1 = f1 / f1_max
@@ -1750,8 +1843,9 @@ class P2T1():
         return objs
 
 
-class P2T2():
+class P2T2(PT):
     def __init__(self, n_dim=10):
+        super().__init__(self)
         self.current_name = "P2T2"
         self.n_dim = n_dim
         self.n_obj = 2
@@ -1761,7 +1855,7 @@ class P2T2():
         self.ubound = torch.ones(n_dim)
         self.ubound[1:] = self.ubound[1:] * 5
         self.nadir_point = [2886.3695604236013, 0.039999999999998245]
-        self.coef = 0.01
+        self.coef = 1
 
     def pareto_x(self, sample_size=500):
         optimal_x = torch.ones(sample_size, self.n_dim) * 0.6
@@ -1771,7 +1865,7 @@ class P2T2():
             self.lbound = self.lbound.cuda()
             self.ubound = self.ubound.cuda()
 
-        optimal_x[:, 1:] = (S_cm2 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
+        optimal_x[:, 1:] = (self.S_cm2 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
 
         return optimal_x
 
@@ -1791,7 +1885,7 @@ class P2T2():
         # print("M shape of {}, x shape of {}, and S shape of {}.".format(M_cm2.shape,
         #                                                                 x.shape,
         #                                                                 S_cm2.shape))
-        z = torch.matmul((x - S_cm2), M_cm2.T)
+        z = torch.matmul((x - self.S_cm2), self.M_cm2.T)
         return 1 + self.coef * torch.sum(torch.abs(z), dim=1) * 9 / (self.n_dim - 1)
 
     def evaluate(self, eval_x):
@@ -1807,12 +1901,14 @@ class P2T2():
 
         x = x * (self.ubound - self.lbound) + self.lbound
 
-        f1_max = 2
-        f2_max = 2
+        # f1_max = 2
+        # f2_max = 2
+        f1_max = 1
+        f2_max = 1
 
         f1 = self.q(x[:, 1:]) * torch.cos(torch.pi * x[:, 0] / 2)
-        f1 = f1 / f1_max
         f2 = self.q(x[:, 1:]) * torch.sin(torch.pi * x[:, 0] / 2)
+        f1 = f1 / f1_max
         f2 = f2 / f2_max
 
         objs = torch.stack([f1, f2]).T
@@ -1820,8 +1916,9 @@ class P2T2():
         return objs
 
 
-class P3T1():
+class P3T1(PT):
     def __init__(self, n_dim=50):
+        super().__init__(self)
         self.current_name = "P3T1"
         self.n_dim = n_dim
         self.n_obj = 2
@@ -1831,8 +1928,8 @@ class P3T1():
         self.ubound = torch.ones(n_dim)
         self.ubound[1:] = self.ubound[1:] * 2
         self.nadir_point = [2886.3695604236013, 0.039999999999998245]
-        self.coef_1 = 0.01
-        self.coef_2 = 0.01
+        self.coef_1 = 1
+        self.coef_2 = 1
 
     def q(self, x):
         # Compute the q function to scale both objectives
@@ -1851,12 +1948,14 @@ class P3T1():
 
         x = x * (self.ubound - self.lbound) + self.lbound
 
-        f1_max = 6.5
-        f2_max = 6.5
+        # f1_max = 6.5
+        # f2_max = 6.5
+        f1_max = 1
+        f2_max = 1
 
         f1 = self.q(x[:, 1:]) * torch.cos(torch.pi * x[:, 0] / 2)
-        f1 = f1 / f1_max
         f2 = self.q(x[:, 1:]) * torch.sin(torch.pi * x[:, 0] / 2)
+        f1 = f1 / f1_max
         f2 = f2 / f2_max
         # f1 = x[:, 0]
         # f1 = f1 / f1_max
@@ -1891,8 +1990,9 @@ class P3T1():
         return y, y_ref
 
 
-class P3T2():
+class P3T2(PT):
     def __init__(self, n_dim=50):
+        super().__init__(self)
         self.current_name = "P3T2"
         self.n_dim = n_dim
         self.n_obj = 2
@@ -1902,15 +2002,15 @@ class P3T2():
         self.ubound = torch.ones(n_dim)
         self.ubound[1:] = self.ubound[1:] * 1
         self.nadir_point = [2886.3695604236013, 0.039999999999998245]
-        self.coef = 0.01
-        # self.coef_2 = 0.01
+        self.coef_1 = 1
+        self.coef_2 = 1
 
     def q(self, x):
         # Compute the q function to scale both objectives
-        # return 21 + math.exp(1) - \
-        #     20 * torch.exp(-self.coef_1 * torch.sqrt(torch.sum(torch.square(x), dim=1) / (self.n_dim - 1))) - \
-        #     self.coef_2 * torch.exp(torch.sum(torch.cos(2 * torch.pi * x), dim=1) / (self.n_dim - 1))
-        return 1 + self.coef * torch.sum(torch.square(x), dim=1)
+        return 21 + math.exp(1) - \
+            20 * torch.exp(-self.coef_1 * torch.sqrt(torch.sum(torch.square(x), dim=1) / (self.n_dim - 1))) - \
+            self.coef_2 * torch.exp(torch.sum(torch.cos(2 * torch.pi * x), dim=1) / (self.n_dim - 1))
+        # return 1 + self.coef * torch.sum(torch.square(x), dim=1)
 
     def evaluate(self, eval_x):
         # Feed in the effective size of solution vectors
@@ -1933,8 +2033,8 @@ class P3T2():
         # f2 = self.q(x[:, 1:]) * torch.sin(torch.pi * x[:, 0] / 2)
         # f2 = f2 / f2_max
         f1 = x[:, 0]
-        f1 = f1 / f1_max
         f2 = self.q(x[:, 1:]) * (1 - torch.sqrt(x[:, 0] / self.q(x[:, 1:])))
+        f1 = f1 / f1_max
         f2 = f2 / f2_max
 
         objs = torch.stack([f1, f2]).T
@@ -1965,8 +2065,9 @@ class P3T2():
         return y, y_ref
 
 
-class P4T1():
+class P4T1(PT):
     def __init__(self, n_dim=50):
+        super().__init__(self)
         self.current_name = "P4T1"
         self.n_dim = n_dim
         self.n_obj = 2
@@ -2035,8 +2136,9 @@ class P4T1():
         return y, y_ref
 
 
-class P4T2():
+class P4T2(PT):
     def __init__(self, n_dim=50):
+        super().__init__(self)
         self.current_name = "P4T2"
         self.n_dim = n_dim
         self.n_obj = 2
@@ -2051,7 +2153,7 @@ class P4T2():
 
     def q(self, x):
         # Compute the q function to scale both objectives
-        z = x - S_ph2
+        z = x - self.S_ph2
         return 1 + self.coef_1 * torch.sum(torch.square(z) - self.coef_2 * torch.cos(2 * torch.pi * z) + 10, dim=1)
 
     def evaluate(self, eval_x):
@@ -2059,7 +2161,7 @@ class P4T2():
         # Transform them into standard vectors with pending 0.5
         sample_size, sample_dim = eval_x.shape
         x = torch.ones(sample_size, self.n_dim)
-        x[:, 1:] = (S_ph2 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
+        x[:, 1:] = (self.S_ph2 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
         x[:, :sample_dim] = eval_x
 
         if x.device.type == 'cuda':
@@ -2093,7 +2195,7 @@ class P4T2():
             self.lbound = self.lbound.cuda()
             self.ubound = self.ubound.cuda()
 
-        optimal_x[:, 1:] = (S_ph2 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
+        optimal_x[:, 1:] = (self.S_ph2 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
 
         return optimal_x
 
@@ -2108,8 +2210,9 @@ class P4T2():
         return y, y_ref
 
 
-class P5T1():
+class P5T1(PT):
     def __init__(self, n_dim=50):
+        super().__init__(self)
         self.current_name = "P5T1"
         self.n_dim = n_dim
         self.n_obj = 2
@@ -2123,7 +2226,7 @@ class P5T1():
 
     def q(self, x):
         # Compute the q function to scale both objectives
-        z = torch.matmul((x - S_pm1), M_pm1.T)
+        z = torch.matmul((x - self.S_pm1), self.M_pm1.T)
         return 1 + self.coef * torch.sum(torch.square(z), dim=1)
 
     def evaluate(self, eval_x):
@@ -2131,7 +2234,7 @@ class P5T1():
         # Transform them into standard vectors with pending 0.5
         sample_size, sample_dim = eval_x.shape
         x = torch.ones(sample_size, self.n_dim)
-        x[:, 1:] = (S_pm1 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
+        x[:, 1:] = (self.S_pm1 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
         x[:, :sample_dim] = eval_x
 
         if x.device.type == 'cuda':
@@ -2165,7 +2268,7 @@ class P5T1():
             self.lbound = self.lbound.cuda()
             self.ubound = self.ubound.cuda()
 
-        optimal_x[:, 1:] = (S_pm1 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
+        optimal_x[:, 1:] = (self.S_pm1 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
 
         return optimal_x
 
@@ -2180,8 +2283,9 @@ class P5T1():
         return y, y_ref
 
 
-class P5T2():
+class P5T2(PT):
     def __init__(self, n_dim=50):
+        super().__init__(self)
         self.current_name = "P5T2"
         self.n_dim = n_dim
         self.n_obj = 2
@@ -2196,7 +2300,7 @@ class P5T2():
 
     def q(self, x):
         # Compute the q function to scale both objectives
-        z = torch.matmul(x, M_pm2.T)
+        z = torch.matmul(x, self.M_pm2.T)
         return 1 + self.coef_1 * torch.sum(torch.square(z) - self.coef_2 * torch.cos(2 * torch.pi * z) + 10, dim=1)
 
     def evaluate(self, eval_x):
@@ -2253,8 +2357,9 @@ class P5T2():
         return y, y_ref
 
 
-class P6T1():
+class P6T1(PT):
     def __init__(self, n_dim=50):
+        super().__init__(self)
         self.current_name = "P6T1"
         self.n_dim = n_dim
         self.n_obj = 2
@@ -2326,8 +2431,9 @@ class P6T1():
         return y, y_ref
 
 
-class P6T2():
+class P6T2(PT):
     def __init__(self, n_dim=50):
+        super().__init__(self)
         self.current_name = "P6T2"
         self.n_dim = n_dim
         self.n_obj = 2
@@ -2341,7 +2447,7 @@ class P6T2():
 
     def q(self, x):
         # Compute the q function to scale both objectives
-        z = x - S_pl2
+        z = x - self.S_pl2
         # return 21 + math.exp(1) - \
         #     20 * torch.exp(-0.2 * torch.sqrt(torch.sum(torch.square(z), dim=1) / (self.n_dim - 1))) - \
         #     torch.exp(torch.sum(torch.cos(2 * torch.pi * z), dim=1) / (self.n_dim - 1))
@@ -2352,7 +2458,7 @@ class P6T2():
         # Transform them into standard vectors with pending 0.5
         sample_size, sample_dim = eval_x.shape
         x = torch.ones(sample_size, self.n_dim) * 0
-        x[:, 1:] = (S_pl2 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
+        x[:, 1:] = (self.S_pl2 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
         x[:, :sample_dim] = eval_x
 
         if x.device.type == 'cuda':
@@ -2386,7 +2492,7 @@ class P6T2():
             self.lbound = self.lbound.cuda()
             self.ubound = self.ubound.cuda()
 
-        optimal_x[:, 1:] = (S_pl2 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
+        optimal_x[:, 1:] = (self.S_pl2 - self.lbound[1:]) / (self.ubound[1:] - self.lbound[1:])
 
         return optimal_x
 
@@ -2401,8 +2507,9 @@ class P6T2():
         return y, y_ref
 
 
-class P7T1():
+class P7T1(PT):
     def __init__(self, n_dim=50):
+        super().__init__(self)
         self.current_name = "P7T1"
         self.n_dim = n_dim
         self.n_obj = 2
@@ -2479,8 +2586,9 @@ class P7T1():
         return y, y_ref
 
 
-class P7T2():
+class P7T2(PT):
     def __init__(self, n_dim=50):
+        super().__init__(self)
         self.current_name = "P7T2"
         self.n_dim = n_dim
         self.n_obj = 2
@@ -2551,8 +2659,9 @@ class P7T2():
         return y, y_ref
 
 
-class P8T1():
+class P8T1(PT):
     def __init__(self, n_dim=20):
+        super().__init__(self)
         self.current_name = "P8T1"
         self.n_dim = n_dim
         self.n_obj = 3
@@ -2601,8 +2710,9 @@ class P8T1():
         return objs
 
 
-class P8T2():
+class P8T2(PT):
     def __init__(self, n_dim=20):
+        super().__init__(self)
         self.current_name = "P8T2"
         self.n_dim = n_dim
         self.n_obj = 2
@@ -2615,7 +2725,7 @@ class P8T2():
 
     def q(self, x):
         # Compute the q function to scale both objectives
-        z = torch.matmul(x, M_nm2.T)
+        z = torch.matmul(x, self.M_nm2.T)
         return 1 + torch.sum(torch.square(z), dim=1)
 
     def evaluate(self, eval_x):
@@ -2997,26 +3107,27 @@ if __name__ == "__main__":
     # print("M_cm2 is {} with shape {}.".format(M_cm2, M_cm2.shape))
     # print("S_cm2 is {} with shape {}.".format(S_cm2, S_cm2.shape))
 
-    problem_current = P2T2()
+    # res = ref_points(3, 4)
+    # print(res)
 
-    solutions, _ = problem_current.pareto_y()
-    print("Solutions are in shape of {}.".format(solutions.shape))
-    plt.scatter(solutions[:, 0], solutions[:, 1], marker='x')
-    plt.show()
-
-    # effect_dim = 10
-    # sample_size = 300000
-    # sample_ans = torch.rand(sample_size, effect_dim)
+    problem_current = P1T2()
+    effect_dim = 10
+    sample_size = 30000
+    sample_ans = torch.rand(sample_size, effect_dim)
     # # truncate the solution to the effective size version
     # # sample_ans[:, effect_dim:] = 0.5
     # # print(sample_ans)
     #
-    # sample_res = problem_current.evaluate(sample_ans)
-
-    # sample_min = torch.min(sample_res, dim=0).values
-    # sample_max = torch.max(sample_res, dim=0).values
+    sample_res = problem_current.evaluate(sample_ans)
+    # import matplotlib.pyplot as plt
     #
-    # print("sample_min is {}.".format(sample_min))
-    # print("sample_max is {}.".format(sample_max))
+    # plt.scatter(sample_res[:, 0], sample_res[:, 1])
+    # plt.show()
+
+    sample_min = torch.min(sample_res, dim=0).values
+    sample_max = torch.max(sample_res, dim=0).values
+
+    print("sample_min is {}.".format(sample_min))
+    print("sample_max is {}.".format(sample_max))
     # print(problem_current.lbound)
     # print(problem_current.ubound)
