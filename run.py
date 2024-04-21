@@ -83,11 +83,11 @@ problem_name_dict = {0: ['mdtlz1_4_1', 'mdtlz1_4_2', 'mdtlz1_4_3', 'mdtlz1_4_4']
 # rmse_list = [150, 200, 250, 299]
 
 # number of independent runs
-n_run = 10 #20
+n_run = 3 #20
 # number of initialized solutions
-n_init = 100
+n_init = 20
 # number of iterations, and batch size per iteration
-n_iter = 300
+n_iter = 100
 n_sample = 1
 
 # PSL 
@@ -105,7 +105,7 @@ n_local = 0
 # device = 'cuda:0'
 device = 'cpu'
 # benchmark or hyper
-if_hyper = True
+if_hyper = False
 # -----------------------------------------------------------------------------
 
 hv_list = {}
@@ -435,9 +435,9 @@ for range_id in enumerate(problem_name_dict):
                 # update the stats vector for supervision
                 # update pareto set size
                 pareto_records[task_id][i_iter, :] = X_nds.shape[0]
-                pareto_tensors[task_id].append(Y_nds)
+                pareto_tensors[task_id].append(Y_list[task_id])
                 # update igd value
-                igd_records[task_id][i_iter] = igd(front_list[task_id], torch.from_numpy(Y_nds))
+                igd_records[task_id][i_iter] = igd(front_list[task_id], torch.from_numpy(Y_list[task_id]))
                 # DEBUG: Check the pareto frontier distribution so that the IGD data is correct
                 # plt.scatter(Y_nds[:, 0], Y_nds[:, 1], alpha=0.4, label="PSL-MOBO")
                 # plt.scatter(Y_list[task_id][:, 0], Y_list[task_id][:, 1], alpha=0.4, label="PSL-MOBO"s)
@@ -497,6 +497,6 @@ for range_id in enumerate(problem_name_dict):
     #                   my_dict['obj'],
     #                   my_dict['dim'],
     #                   "PSL-MOBO"))
-    torch.save(my_dict, "result/{}_{}_{}".format(range_id, problem_list[0].current_name, "PSL-MOB O"))
+    torch.save(my_dict, "result/{}_{}_{}_test.pth".format(range_id, problem_list[0].current_name, "PSL-MOBO"))
     # torch.save(my_dict, "./result/Benchmark_low_result_P{}_{}.pth".
     #            format(range_id+1, "PSL-MOBO"))
