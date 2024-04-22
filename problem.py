@@ -1929,7 +1929,7 @@ class P3T1(PT):
         self.ubound[1:] = self.ubound[1:] * 2
         self.nadir_point = [2886.3695604236013, 0.039999999999998245]
         self.coef_1 = 1
-        self.coef_2 = 1
+        self.coef_2 = 10
 
     def q(self, x):
         # Compute the q function to scale both objectives
