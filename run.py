@@ -71,11 +71,11 @@ problem_name_dict = {0: ['mdtlz1_4_1', 'mdtlz1_4_2', 'mdtlz1_4_3', 'mdtlz1_4_4']
                      9: ["P7T1", "P7T2"],
                      10: ['hyper1', 'hyper2', 'hyper3'],
                      11: ['hyper1_dart', 'hyper2_dart', 'hyper3_dart'],
-                     # 12: ['method1_1', 'method1_2'],
-                     12: ['method2_1', 'method2_2'],
-                     13: ['method3_1', 'method3_2'],
-                     14: ['fidelity_1', 'fidelity_2', 'fidelity_3'],
-                     15: ['fidelity_1_dart', 'fidelity_2_dart', 'fidelity_3_dart']}
+                     12: ['hyper_r1', 'hyper_r2', 'hyper_r3'],
+                     13: ['method1_1', 'method1_2'],
+                     14: ['method2_1', 'method2_2'],
+                     15: ['method3_1', 'method3_2'],
+                     16: ['re21_t1', 're21_t2', 're21_t3']}
 
 
 # time slot to store rmse results
@@ -83,7 +83,7 @@ problem_name_dict = {0: ['mdtlz1_4_1', 'mdtlz1_4_2', 'mdtlz1_4_3', 'mdtlz1_4_4']
 # rmse_list = [150, 200, 250, 299]
 
 # number of independent runs
-n_run = 3 #20
+n_run = 10 #20
 # number of initialized solutions
 n_init = 20
 # number of iterations, and batch size per iteration
@@ -92,7 +92,7 @@ n_sample = 1
 
 # PSL 
 # number of learning steps
-n_steps = 50
+n_steps = 100
 # number of sampled preferences per step
 n_pref_update = 1
 # coefficient of LCB
@@ -102,8 +102,8 @@ n_candidate = 50
 # number of optional local search
 n_local = 0
 # device
-# device = 'cuda:0'
-device = 'cpu'
+device = 'cuda:0'
+# device = 'cpu'
 # benchmark or hyper
 if_hyper = False
 # -----------------------------------------------------------------------------
@@ -120,21 +120,25 @@ hv_list = {}
 # problem_range = [3, 3, 3]
 # problem_range = [2, 2, 2]
 
-for range_id in enumerate(problem_name_dict):
+for range_id in problem_name_dict:
+    if 3 <= range_id <= 9 or range_id in [12, 13, 15]:
+        pass
+    else:
+        continue
 
     rmse_list = np.arange(n_iter / 4, n_iter + 1, n_iter / 4) - 1
     if_DTLZ = False
     if_bench = False
     if_hyper = False
 
-    if range_id in list(np.arange(0, 3)):
+    if 0 <= range_id < 3:
         if_DTLZ = True
-    elif range_id in list(np.arange(3, 10)):
+    elif 3 <= range_id < 10:
         if_bench = True
-    elif range_id in list(np.arange(10, 16)):
+    elif 10 <= range_id < 17:
         if_hyper = True
     else:
-        assert range_id in list(np.arange(0, 16))
+        assert 0 <= range_id < 17
 
     problem_name_list = problem_name_dict[range_id]
     problem_size = len(problem_name_list)
@@ -222,23 +226,7 @@ for range_id in enumerate(problem_name_dict):
         true_result = None
         tmp_path = None
         if if_hyper:
-            if problem_list[0].name == 'hyper1':
-                tmp_path = "truth/nsgaiii_xgboost_100_pymoo_max.pth"
-            elif problem_list[0].name == 'hyper1_dart':
-                tmp_path = "truth/nsgaiii_xgboost_dart_100_pymoo_max.pth"
-            elif problem_list[0].name == 'method2_1':
-                tmp_path = "truth/nsgaiii_two_second_new_100_pymoo_max.pth"
-            elif problem_list[0].name == 'method3_1':
-                tmp_path = "truth/nsgaiii_two_third_new_100_pymoo_max.pth"
-            elif problem_list[0].name == 'fidelity_1':
-                tmp_path = "truth/nsgaiii_singel_xgboost_100_pymoo_max.pth"
-            elif problem_list[0].name == 'fidelity_1_dart':
-                tmp_path = "truth/nsgaiii_singel_xgboost_dart_100_pymoo.pth"
-            else:
-                # print("my problem_list[0] is {}".format(problem_list))
-                assert problem_list[0].name in ['hyper1', 'hyper1_dart',
-                                                'method2_1', 'method3_1',
-                                                'fidelity_1', 'fidelity_1_dart']
+            tmp_path = "{}_{}_truth.pth".format(range_id, problem_name_list[0].current_name)
             true_result = torch.load(tmp_path)
 
         # prepare the ground truth PF and weights for evaluation (con't)
