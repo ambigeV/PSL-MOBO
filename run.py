@@ -121,7 +121,7 @@ hv_list = {}
 # problem_range = [2, 2, 2]
 
 for range_id in problem_name_dict:
-    if 3 <= range_id <= 9 or range_id in [12, 13, 15]:
+    if 3 <= range_id <= 9 or range_id in [12, 13, 15] or range_id < 2:
         continue
     else:
         pass
