@@ -8,7 +8,7 @@ import time
 import pickle
 
 from problem import get_problem
-from utils import igd, rmse
+from utils import igd, rmse, igd_plus
 
 from lhs import lhs
 from pymoo.indicators.hv import HV
@@ -425,7 +425,7 @@ for range_id in problem_name_dict:
                 pareto_records[task_id][i_iter, :] = X_nds.shape[0]
                 pareto_tensors[task_id].append(Y_list[task_id])
                 # update igd value
-                igd_records[task_id][i_iter] = igd(front_list[task_id], torch.from_numpy(Y_list[task_id]))
+                igd_records[task_id][i_iter] = igd_plus(front_list[task_id], torch.from_numpy(Y_list[task_id]))
                 # DEBUG: Check the pareto frontier distribution so that the IGD data is correct
                 # plt.scatter(Y_nds[:, 0], Y_nds[:, 1], alpha=0.4, label="PSL-MOBO")
                 # plt.scatter(Y_list[task_id][:, 0], Y_list[task_id][:, 1], alpha=0.4, label="PSL-MOBO"s)
