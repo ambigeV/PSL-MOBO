@@ -122,9 +122,9 @@ hv_list = {}
 
 for range_id in problem_name_dict:
     if 3 <= range_id <= 9 or range_id in [12, 13, 15]:
-        pass
-    else:
         continue
+    else:
+        pass
 
     rmse_list = np.arange(n_iter / 4, n_iter + 1, n_iter / 4) - 1
     if_DTLZ = False
@@ -226,7 +226,7 @@ for range_id in problem_name_dict:
         true_result = None
         tmp_path = None
         if if_hyper:
-            tmp_path = "{}_{}_truth.pth".format(range_id, problem_name_list[0].current_name)
+            tmp_path = "{}_{}_truth.pth".format(range_id, problem_list[0].current_name)
             true_result = torch.load(tmp_path)
 
         # prepare the ground truth PF and weights for evaluation (con't)
