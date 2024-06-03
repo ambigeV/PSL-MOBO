@@ -1,3 +1,4 @@
+import numpy
 import torch
 import numpy as np
 # import tdc
@@ -91,10 +92,10 @@ def get_problem(name, *args, **kwargs):
         'mdtlz1_3_1': mDTLZ1(m=3, n=6, s=1.0, p=0.5, p_ind=0),
         'mdtlz1_3_2': mDTLZ1(m=3, n=6, s=0.85, p=0.5, p_ind=1),
         'mdtlz1_3_3': mDTLZ1(m=3, n=6, s=0.70, p=0.5, p_ind=2),
-        'mdtlz1_4_1': mDTLZ1(m=3, n=6, s=1.0, p=0.5, p_ind=0),
-        'mdtlz1_4_2': mDTLZ1(m=3, n=6, s=0.75, p=0.5, p_ind=1),
-        'mdtlz1_4_3': mDTLZ1(m=3, n=6, s=0.50, p=0.5, p_ind=2),
-        'mdtlz1_4_4': mDTLZ1(m=3, n=6, s=0.25, p=0.5, p_ind=3),
+        'mdtlz1_4_1': mDTLZ1(m=3, n=6, s=0.35, p=0.5, p_ind=0),
+        'mdtlz1_4_2': mDTLZ1(m=3, n=6, s=0.30, p=0.5, p_ind=1),
+        'mdtlz1_4_3': mDTLZ1(m=3, n=6, s=0.25, p=0.5, p_ind=2),
+        'mdtlz1_4_4': mDTLZ1(m=3, n=6, s=0.20, p=0.5, p_ind=3),
         'invdtlz1_4_1': invDTLZ1(m=3, n=6, s=1.0, p=0.5, p_ind=0),
         'invdtlz1_4_2': invDTLZ1(m=3, n=6, s=0.75, p=0.5, p_ind=1),
         'invdtlz1_4_3': invDTLZ1(m=3, n=6, s=0.50, p=0.5, p_ind=2),
@@ -113,10 +114,10 @@ def get_problem(name, *args, **kwargs):
         'mdtlz3_3_1': mDTLZ3(m=3, n=6, s=1.0, p=0.5, p_ind=0),
         'mdtlz3_3_2': mDTLZ3(m=3, n=6, s=0.85, p=0.5, p_ind=1),
         'mdtlz3_3_3': mDTLZ3(m=3, n=6, s=0.70, p=0.5, p_ind=2),
-        'mdtlz3_4_1': mDTLZ3(m=3, n=6, s=1.0, p=0.5, p_ind=0),
-        'mdtlz3_4_2': mDTLZ3(m=3, n=6, s=0.75, p=0.5, p_ind=1),
-        'mdtlz3_4_3': mDTLZ3(m=3, n=6, s=0.50, p=0.5, p_ind=2),
-        'mdtlz3_4_4': mDTLZ3(m=3, n=6, s=0.25, p=0.5, p_ind=3),
+        'mdtlz3_4_1': mDTLZ3(m=3, n=6, s=0.20, p=0.5, p_ind=0),
+        'mdtlz3_4_2': mDTLZ3(m=3, n=6, s=0.18, p=0.5, p_ind=1),
+        'mdtlz3_4_3': mDTLZ3(m=3, n=6, s=0.16, p=0.5, p_ind=2),
+        'mdtlz3_4_4': mDTLZ3(m=3, n=6, s=0.14, p=0.5, p_ind=3),
         'invdtlz3_4_1': invDTLZ3(m=3, n=6, s=1.0, p=0.5, p_ind=0),
         'invdtlz3_4_2': invDTLZ3(m=3, n=6, s=0.75, p=0.5, p_ind=1),
         'invdtlz3_4_3': invDTLZ3(m=3, n=6, s=0.50, p=0.5, p_ind=2),
@@ -1790,7 +1791,7 @@ class P2T1(PT):
         self.ubound = torch.ones(n_dim)
         self.ubound[1:] = self.ubound[1:] * 5
         self.nadir_point = [2886.3695604236013, 0.039999999999998245]
-        self.coef_1 = 1
+        self.coef_1 = 100
         self.coef_2 = 1
 
     def q(self, x):
@@ -2077,7 +2078,7 @@ class P4T1(PT):
         self.ubound = torch.ones(n_dim)
         self.ubound[1:] = self.ubound[1:] * 100
         self.nadir_point = [2886.3695604236013, 0.039999999999998245]
-        self.coef = 0.001
+        self.coef = 1
 
     def q(self, x):
         # Compute the q function to scale both objectives
@@ -2096,16 +2097,19 @@ class P4T1(PT):
 
         x = x * (self.ubound - self.lbound) + self.lbound
 
+        # f1_max = 1
+        # f2_max = 70
         f1_max = 1
-        f2_max = 70
+        f2_max = 1
+
 
         # f1 = self.q(x[:, 1:]) * torch.cos(torch.pi * x[:, 0] / 2)
         # f1 = f1 / f1_max
         # f2 = self.q(x[:, 1:]) * torch.sin(torch.pi * x[:, 0] / 2)
         # f2 = f2 / f2_max
         f1 = x[:, 0]
-        f1 = f1 / f1_max
         f2 = self.q(x[:, 1:]) * (1 - torch.sqrt(x[:, 0] / self.q(x[:, 1:])))
+        f1 = f1 / f1_max
         f2 = f2 / f2_max
 
         objs = torch.stack([f1, f2]).T
@@ -2148,8 +2152,8 @@ class P4T2(PT):
         self.ubound = torch.ones(n_dim)
         self.ubound[1:] = self.ubound[1:] * 100
         self.nadir_point = [2886.3695604236013, 0.039999999999998245]
-        self.coef_1 = 0.001
-        self.coef_2 = 0.001
+        self.coef_1 = 1
+        self.coef_2 = 10
 
     def q(self, x):
         # Compute the q function to scale both objectives
@@ -2170,16 +2174,18 @@ class P4T2(PT):
 
         x = x * (self.ubound - self.lbound) + self.lbound
 
+        # f1_max = 1
+        # f2_max = 70
         f1_max = 1
-        f2_max = 70
+        f2_max = 1
 
         # f1 = self.q(x[:, 1:]) * torch.cos(torch.pi * x[:, 0] / 2)
         # f1 = f1 / f1_max
         # f2 = self.q(x[:, 1:]) * torch.sin(torch.pi * x[:, 0] / 2)
         # f2 = f2 / f2_max
         f1 = x[:, 0]
-        f1 = f1 / f1_max
         f2 = self.q(x[:, 1:]) * (1 - torch.sqrt(x[:, 0] / self.q(x[:, 1:])))
+        f1 = f1 / f1_max
         f2 = f2 / f2_max
 
         objs = torch.stack([f1, f2]).T
@@ -2222,7 +2228,7 @@ class P5T1(PT):
         self.ubound = torch.ones(n_dim)
         self.ubound[1:] = self.ubound[1:] * 1
         self.nadir_point = [2886.3695604236013, 0.039999999999998245]
-        self.coef = 0.001
+        self.coef = 1
 
     def q(self, x):
         # Compute the q function to scale both objectives
@@ -2243,16 +2249,18 @@ class P5T1(PT):
 
         x = x * (self.ubound - self.lbound) + self.lbound
 
-        f1_max = 1.3
-        f2_max = 1.3
+        # f1_max = 1.3
+        # f2_max = 1.3
+        f1_max = 1
+        f2_max = 1
 
         # f1 = self.q(x[:, 1:]) * torch.cos(torch.pi * x[:, 0] / 2)
         # f1 = f1 / f1_max
         # f2 = self.q(x[:, 1:]) * torch.sin(torch.pi * x[:, 0] / 2)
         # f2 = f2 / f2_max
         f1 = self.q(x[:, 1:]) * torch.cos(torch.pi * x[:, 0] / 2)
-        f1 = f1 / f1_max
         f2 = self.q(x[:, 1:]) * torch.sin(torch.pi * x[:, 0] / 2)
+        f1 = f1 / f1_max
         f2 = f2 / f2_max
 
         objs = torch.stack([f1, f2]).T
@@ -2295,8 +2303,8 @@ class P5T2(PT):
         self.ubound = torch.ones(n_dim)
         self.ubound[1:] = self.ubound[1:] * 1
         self.nadir_point = [2886.3695604236013, 0.039999999999998245]
-        self.coef_1 = 0.001
-        self.coef_2 = 0.001
+        self.coef_1 = 1
+        self.coef_2 = 10
 
     def q(self, x):
         # Compute the q function to scale both objectives
@@ -2317,16 +2325,19 @@ class P5T2(PT):
 
         x = x * (self.ubound - self.lbound) + self.lbound
 
+        # f1_max = 1
+        # f2_max = 2.5
         f1_max = 1
-        f2_max = 2.5
+        f2_max = 1
 
         # f1 = self.q(x[:, 1:]) * torch.cos(torch.pi * x[:, 0] / 2)
         # f1 = f1 / f1_max
         # f2 = self.q(x[:, 1:]) * torch.sin(torch.pi * x[:, 0] / 2)
         # f2 = f2 / f2_max
         f1 = x[:, 0]
-        f1 = f1 / f1_max
         f2 = self.q(x[:, 1:]) * (1 - torch.square(x[:, 0] / self.q(x[:, 1:])))
+
+        f1 = f1 / f1_max
         f2 = f2 / f2_max
 
         objs = torch.stack([f1, f2]).T
@@ -2372,10 +2383,10 @@ class P6T1(PT):
 
     def q(self, x):
         # Compute the q function to scale both objectives
-        # z = torch.matmul((x - S_pm1), M_pm1.T)
-        # return 2 + torch.sum(torch.square(x), dim=1) / 4000 - \
-        #     torch.prod(torch.cos(x / torch.sqrt(1 + torch.arange(self.n_dim-1))), dim=1)
-        return 1 + torch.sum(torch.square(x), dim=1) / 4000
+        z = torch.matmul((x - self.S_pm1), self.M_pm1.T)
+        return 2 + torch.sum(torch.square(x), dim=1) / 4000 - \
+            torch.prod(torch.cos(x / torch.sqrt(1 + torch.arange(self.n_dim-1))), dim=1)
+        # return 1 + torch.sum(torch.square(x), dim=1) / 4000
 
     def evaluate(self, eval_x):
         # Feed in the effective size of solution vectors
@@ -2391,16 +2402,18 @@ class P6T1(PT):
 
         x = x * (self.ubound - self.lbound) + self.lbound
 
-        f1_max = 5.5
-        f2_max = 5.5
+        # f1_max = 5.5
+        # f2_max = 5.5
+        f1_max = 1
+        f2_max = 1
 
         # f1 = self.q(x[:, 1:]) * torch.cos(torch.pi * x[:, 0] / 2)
         # f1 = f1 / f1_max
         # f2 = self.q(x[:, 1:]) * torch.sin(torch.pi * x[:, 0] / 2)
         # f2 = f2 / f2_max
         f1 = self.q(x[:, 1:]) * torch.cos(torch.pi * x[:, 0] / 2)
-        f1 = f1 / f1_max
         f2 = self.q(x[:, 1:]) * torch.sin(torch.pi * x[:, 0] / 2)
+        f1 = f1 / f1_max
         f2 = f2 / f2_max
 
         objs = torch.stack([f1, f2]).T
@@ -2443,15 +2456,15 @@ class P6T2(PT):
         self.ubound = torch.ones(n_dim)
         self.ubound[1:] = self.ubound[1:] * 100
         self.nadir_point = [2886.3695604236013, 0.039999999999998245]
-        self.coef = 0.01
+        self.coef = 1
 
     def q(self, x):
         # Compute the q function to scale both objectives
         z = x - self.S_pl2
-        # return 21 + math.exp(1) - \
-        #     20 * torch.exp(-0.2 * torch.sqrt(torch.sum(torch.square(z), dim=1) / (self.n_dim - 1))) - \
-        #     torch.exp(torch.sum(torch.cos(2 * torch.pi * z), dim=1) / (self.n_dim - 1))
-        return 1 + self.coef * torch.sum(torch.square(z), dim=1)
+        return 21 + math.exp(1) - \
+            20 * torch.exp(-0.2 * torch.sqrt(torch.sum(torch.square(z), dim=1) / (self.n_dim - 1))) - \
+            torch.exp(torch.sum(torch.cos(2 * torch.pi * z), dim=1) / (self.n_dim - 1))
+        # return 1 + self.coef * torch.sum(torch.square(z), dim=1)
 
     def evaluate(self, eval_x):
         # Feed in the effective size of solution vectors
@@ -2467,16 +2480,18 @@ class P6T2(PT):
 
         x = x * (self.ubound - self.lbound) + self.lbound
 
-        f1_max = 700
-        f2_max = 700
+        # f1_max = 700
+        # f2_max = 700
+        f1_max = 1
+        f2_max = 1
 
         # f1 = self.q(x[:, 1:]) * torch.cos(torch.pi * x[:, 0] / 2)
         # f1 = f1 / f1_max
         # f2 = self.q(x[:, 1:]) * torch.sin(torch.pi * x[:, 0] / 2)
         # f2 = f2 / f2_max
         f1 = self.q(x[:, 1:]) * torch.cos(torch.pi * x[:, 0] / 2)
-        f1 = f1 / f1_max
         f2 = self.q(x[:, 1:]) * torch.sin(torch.pi * x[:, 0] / 2)
+        f1 = f1 / f1_max
         f2 = f2 / f2_max
 
         objs = torch.stack([f1, f2]).T
@@ -2519,9 +2534,9 @@ class P7T1(PT):
         self.ubound = torch.ones(n_dim)
         self.ubound[1:] = self.ubound[1:] * 80
         self.nadir_point = [2886.3695604236013, 0.039999999999998245]
-        self.coef_1 = 0.001
-        self.coef_2 = 0.001
-        self.coef_3 = 0.01
+        self.coef_1 = 100
+        self.coef_2 = 1
+        self.coef_3 = 1
 
     def q(self, x):
         # Compute the q function to scale both objectives
@@ -2547,14 +2562,16 @@ class P7T1(PT):
 
         f1_max = 2.8e3
         f2_max = 2.8e3
+        # f1_max = 1
+        # f2_max = 2
 
         # f1 = self.q(x[:, 1:]) * torch.cos(torch.pi * x[:, 0] / 2)
         # f1 = f1 / f1_max
         # f2 = self.q(x[:, 1:]) * torch.sin(torch.pi * x[:, 0] / 2)
         # f2 = f2 / f2_max
         f1 = self.q(x[:, 1:]) * torch.cos(torch.pi * x[:, 0] / 2)
-        f1 = f1 / f1_max
         f2 = self.q(x[:, 1:]) * torch.sin(torch.pi * x[:, 0] / 2)
+        f1 = f1 / f1_max
         f2 = f2 / f2_max
 
         objs = torch.stack([f1, f2]).T
@@ -2598,7 +2615,7 @@ class P7T2(PT):
         self.ubound = torch.ones(n_dim)
         self.ubound[1:] = self.ubound[1:] * 80
         self.nadir_point = [2886.3695604236013, 0.039999999999998245]
-        self.coef = 0.005
+        self.coef = 1
 
     def q(self, x):
         # Compute the q function to scale both objectives
@@ -2618,16 +2635,18 @@ class P7T2(PT):
 
         x = x * (self.ubound - self.lbound) + self.lbound
 
+        # f1_max = 1
+        # f2_max = 250
         f1_max = 1
-        f2_max = 250
+        f2_max = 1
 
         # f1 = self.q(x[:, 1:]) * torch.cos(torch.pi * x[:, 0] / 2)
         # f1 = f1 / f1_max
         # f2 = self.q(x[:, 1:]) * torch.sin(torch.pi * x[:, 0] / 2)
         # f2 = f2 / f2_max
         f1 = x[:, 0]
-        f1 = f1 / f1_max
         f2 = self.q(x[:, 1:]) * (1 - torch.sqrt(x[:, 0] / self.q(x[:, 1:])))
+        f1 = f1 / f1_max
         f2 = f2 / f2_max
 
         objs = torch.stack([f1, f2]).T
@@ -2782,6 +2801,9 @@ class RE21():
         F = self.F
         E = self.E
         L = self.L
+
+        if isinstance(x, numpy.ndarray):
+            x = torch.from_numpy(x).float()
 
         if x.device.type == 'cuda':
             self.lbound = self.lbound.cuda()
@@ -3110,7 +3132,7 @@ if __name__ == "__main__":
     # res = ref_points(3, 4)
     # print(res)
 
-    problem_current = P1T2()
+    problem_current = P3T1()
     effect_dim = 10
     sample_size = 30000
     sample_ans = torch.rand(sample_size, effect_dim)
